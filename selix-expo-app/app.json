@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Selix",
+    "slug": "selix-mobile",
+    "scheme": "selix",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "icon": "./assets/selix-icon.png",
+    "splash": {
+      "image": "./assets/selix-splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#07111F"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.selix.mobile",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Selix a besoin d'acceder a vos photos pour ajouter des images de projet."
+        ,"NSUserNotificationUsageDescription": "Selix envoie des rappels et mises a jour sur vos visites, messages et offres."
+      }
+    },
+    "android": {
+      "package": "com.selix.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/selix-icon.png",
+        "backgroundColor": "#07111F"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "POST_NOTIFICATIONS",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/selix-icon.png",
+          "color": "#D80E8C"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Selix a besoin d'acceder a vos photos pour ajouter des images de projet."
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
