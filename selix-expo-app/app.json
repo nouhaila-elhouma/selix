@@ -16,8 +16,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.selix.mobile",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Selix a besoin d'acceder a vos photos pour ajouter des images de projet."
-        ,"NSUserNotificationUsageDescription": "Selix envoie des rappels et mises a jour sur vos visites, messages et offres."
+        "NSPhotoLibraryUsageDescription": "Selix a besoin d'acceder a vos photos pour ajouter des images de projet.",
+        "NSUserNotificationUsageDescription": "Selix envoie des rappels et mises a jour sur vos visites, messages et offres.",
+        "NSMicrophoneUsageDescription": "Selix a besoin du micro pour permettre les appels audio dans l'application."
       }
     },
     "android": {
@@ -30,7 +31,9 @@
       "permissions": [
         "POST_NOTIFICATIONS",
         "READ_MEDIA_IMAGES",
-        "READ_EXTERNAL_STORAGE"
+        "READ_EXTERNAL_STORAGE",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {

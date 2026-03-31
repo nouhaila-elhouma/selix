@@ -3,10 +3,10 @@ import {
   Alert,
   Animated,
   Easing,
-  Image,
-  KeyboardAvoidingView,
-  Linking,
-  Modal,
+    Image,
+    KeyboardAvoidingView,
+    Linking,
+    Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { useApp } from '../../context/AppContext';
+import { useCall } from '../../context/CallContext';
 import { Conversations, Uploads, getRealtimeSocket } from '../../lib/api';
 import { Conversation, Message } from '../../types';
 import { EmptyState } from '../../components/ui';
@@ -42,6 +43,38 @@ function documentLabelParts(content: string) {
   };
 }
 
+function getConversationCounterpartName(conversation: Conversation, currentUserName?: string | null) {
+  return conversation.participantNames.find((name) => name !== currentUserName) || conversation.participantNames[0] || 'Discussion Selix';
+}
+
+function getCounterpartRoleLabel(currentRole?: string) {
+  if (currentRole === 'client') return 'Commercial attitre';
+  if (currentRole === 'commercial') return 'Client Selix';
+  if (currentRole === 'promoter') return 'Commercial ou client';
+  if (currentRole === 'admin') return 'Conversation supervisee';
+  return 'Conversation Selix';
+}
+
+function getConversationPreview(item: Message | Conversation) {
+  if ('messageType' in item) {
+    if (item.messageType === 'image') return 'Image envoyee';
+    if (item.messageType === 'document') return 'Document partage';
+    return item.content || 'Conversation disponible';
+  }
+  if ('lastMessage' in item) {
+    return item.lastMessage || 'Conversation disponible';
+  }
+  return 'Conversation disponible';
+}
+
+function getSenderRoleLabel(role?: string) {
+  if (role === 'client') return 'Client';
+  if (role === 'commercial') return 'Commercial';
+  if (role === 'promoter') return 'Promoteur';
+  if (role === 'admin') return 'Admin';
+  return 'Selix';
+}
+
 export function MessagesScreen() {
   const {
     conversations,
@@ -53,6 +86,7 @@ export function MessagesScreen() {
     focusConversation,
     t,
   } = useApp();
+  const { startCall } = useCall();
   const [activeConvo, setActiveConvo] = useState<Conversation | null>(null);
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -65,7 +99,6 @@ export function MessagesScreen() {
   const trayAnim = useRef(new Animated.Value(0)).current;
   const safeConversations = useMemo(() => uniqueById(conversations), [conversations]);
   const safeMessages = useMemo(() => uniqueById(messages), [messages]);
-
   const loadConversationMessages = async (conversationId: string) => {
     try {
       const items = await Conversations.messages(conversationId);
@@ -320,24 +353,6 @@ export function MessagesScreen() {
     }
   };
 
-  const handleCall = async () => {
-    if (!activeConvo) return;
-    const otherIndex = activeConvo.participantNames.findIndex((name) => name !== currentUser?.name);
-    const phone = (activeConvo.participantPhones || [])[otherIndex >= 0 ? otherIndex : 0];
-    if (!phone) {
-      Alert.alert('Appel', "Aucun numero n'est disponible pour cet interlocuteur.");
-      return;
-    }
-
-    const url = `tel:${phone}`;
-    const supported = await Linking.canOpenURL(url);
-    if (!supported) {
-      Alert.alert('Appel', 'Cet appareil ne peut pas lancer un appel.');
-      return;
-    }
-    await Linking.openURL(url);
-  };
-
   const openDocument = async (content: string) => {
     const { url } = documentLabelParts(content);
     if (!url) return;
@@ -370,13 +385,22 @@ export function MessagesScreen() {
               <View style={styles.convoContent}>
                 <View style={styles.convoTop}>
                   <Text style={styles.convoName} numberOfLines={1}>
-                    {c.participantNames.find((n) => n !== currentUser?.name) || c.participantNames[0]}
+                    {getConversationCounterpartName(c, currentUser?.name)}
                   </Text>
                   <Text style={styles.convoTime}>{c.lastMessageTime}</Text>
                 </View>
-                {c.relatedPropertyTitle ? <Text style={styles.convoProperty} numberOfLines={1}>{t('messages.property')}: {c.relatedPropertyTitle}</Text> : null}
+                <View style={styles.convoMetaRow}>
+                  <View style={styles.convoMetaBadge}>
+                    <Text style={styles.convoMetaBadgeText}>{getCounterpartRoleLabel(currentUser?.role)}</Text>
+                  </View>
+                  {c.relatedPropertyTitle ? (
+                    <Text style={styles.convoProperty} numberOfLines={1}>
+                      {t('messages.property')}: {c.relatedPropertyTitle}
+                    </Text>
+                  ) : null}
+                </View>
                 <View style={styles.convoBottom}>
-                  <Text style={styles.convoLast} numberOfLines={1}>{c.lastMessage}</Text>
+                  <Text style={styles.convoLast} numberOfLines={1}>{getConversationPreview(c)}</Text>
                   {c.unreadCount > 0 ? (
                     <View style={styles.unreadBadge}>
                       <Text style={styles.unreadText}>{c.unreadCount}</Text>
@@ -399,12 +423,17 @@ export function MessagesScreen() {
                 </TouchableOpacity>
                 <View style={styles.chatHeaderBody}>
                   <Text style={styles.chatName}>
-                    {activeConvo.participantNames.find((n) => n !== currentUser?.name) || activeConvo.participantNames[0]}
+                    {getConversationCounterpartName(activeConvo, currentUser?.name)}
                   </Text>
-                  {activeConvo.relatedPropertyTitle ? <Text style={styles.chatProperty}>{activeConvo.relatedPropertyTitle}</Text> : null}
+                  <View style={styles.chatMetaRow}>
+                    <View style={styles.chatRoleBadge}>
+                      <Text style={styles.chatRoleBadgeText}>{getCounterpartRoleLabel(currentUser?.role)}</Text>
+                    </View>
+                    {activeConvo.relatedPropertyTitle ? <Text style={styles.chatProperty}>{activeConvo.relatedPropertyTitle}</Text> : null}
+                  </View>
                 </View>
-                <TouchableOpacity onPress={handleCall} style={styles.chatCallBtn}>
-                  <Ionicons name="call-outline" size={20} color={Colors.white} />
+                <TouchableOpacity onPress={() => startCall(activeConvo)} style={styles.chatActionBtn} activeOpacity={0.85}>
+                  <Ionicons name="call-outline" size={18} color={Colors.white} />
                 </TouchableOpacity>
               </LinearGradient>
 
@@ -415,7 +444,14 @@ export function MessagesScreen() {
 
                   return (
                     <View key={m.id} style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-                      {!isMe ? <Text style={styles.bubbleSender}>{m.senderName}</Text> : null}
+                      {!isMe ? (
+                        <View style={styles.bubbleSenderRow}>
+                          <Text style={styles.bubbleSender}>{m.senderName}</Text>
+                          <View style={styles.senderRoleBadge}>
+                            <Text style={styles.senderRoleText}>{getSenderRoleLabel(m.senderRole)}</Text>
+                          </View>
+                        </View>
+                      ) : null}
                       {m.messageType === 'image' ? (
                         <TouchableOpacity activeOpacity={0.9} onPress={() => setPreviewImage(m.content)}>
                           <Image source={{ uri: m.content }} style={styles.messageImage} />
@@ -472,12 +508,15 @@ export function MessagesScreen() {
                   >
                     <TouchableOpacity style={[styles.mediaBtn, uploadingImage && styles.mediaBtnDisabled]} onPress={handleTakePhoto} disabled={uploadingImage}>
                       <Ionicons name="camera-outline" size={20} color={Colors.accentMagenta} />
+                      <Text style={styles.mediaLabel}>Photo</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.mediaBtn, uploadingImage && styles.mediaBtnDisabled]} onPress={handlePickImage} disabled={uploadingImage}>
                       <Ionicons name="image-outline" size={20} color={Colors.accentMagenta} />
+                      <Text style={styles.mediaLabel}>Galerie</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.mediaBtn, uploadingFile && styles.mediaBtnDisabled]} onPress={handlePickDocument} disabled={uploadingFile}>
                       <Ionicons name="document-outline" size={20} color={Colors.accentMagenta} />
+                      <Text style={styles.mediaLabel}>Document</Text>
                     </TouchableOpacity>
                   </Animated.View>
                 ) : null}
@@ -529,7 +568,10 @@ const styles = StyleSheet.create({
   convoTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
   convoName: { fontSize: 15, fontWeight: '700', color: Colors.textDark, flex: 1 },
   convoTime: { fontSize: 11, color: Colors.textMuted },
-  convoProperty: { fontSize: 11, color: Colors.accentOrange, marginBottom: 3, fontWeight: '600' },
+  convoMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  convoMetaBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: Colors.lavenderUltra, borderWidth: 1, borderColor: Colors.borderSoft },
+  convoMetaBadgeText: { color: Colors.primarySoft, fontSize: 10, fontWeight: '700' },
+  convoProperty: { flex: 1, fontSize: 11, color: Colors.accentOrange, fontWeight: '600' },
   convoBottom: { flexDirection: 'row', alignItems: 'center' },
   convoLast: { flex: 1, fontSize: 13, color: Colors.textSoft },
   unreadBadge: { width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.accentOrange, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
@@ -538,14 +580,20 @@ const styles = StyleSheet.create({
   chatHeader: { flexDirection: 'row', alignItems: 'center', paddingTop: 52, paddingBottom: 16, paddingHorizontal: 16, gap: 12 },
   chatBack: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   chatHeaderBody: { flex: 1 },
-  chatCallBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  chatActionBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
   chatName: { fontSize: 17, fontWeight: '700', color: Colors.white },
-  chatProperty: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
+  chatMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  chatRoleBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(9,6,17,0.28)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
+  chatRoleBadgeText: { color: Colors.white, fontSize: 10, fontWeight: '800' },
+  chatProperty: { flex: 1, fontSize: 12, color: 'rgba(255,255,255,0.7)' },
   messagesContent: { padding: 16, paddingBottom: 20, gap: 10 },
   bubble: { maxWidth: '80%', padding: 12, borderRadius: 16, marginBottom: 4 },
   bubbleMe: { alignSelf: 'flex-end', backgroundColor: Colors.accentMagenta, borderBottomRightRadius: 4 },
   bubbleThem: { alignSelf: 'flex-start', backgroundColor: Colors.bgCard, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: Colors.borderSoft },
+  bubbleSenderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   bubbleSender: { fontSize: 11, fontWeight: '700', color: Colors.accentMagenta, marginBottom: 4 },
+  senderRoleBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: Colors.lavenderUltra },
+  senderRoleText: { color: Colors.primarySoft, fontSize: 10, fontWeight: '700' },
   bubbleText: { fontSize: 14, color: Colors.textDark, lineHeight: 20 },
   bubbleTextMe: { color: Colors.white },
   messageImage: { width: 220, height: 220, borderRadius: 12, backgroundColor: Colors.bgSoft },
@@ -560,7 +608,8 @@ const styles = StyleSheet.create({
   actionsTray: { flexDirection: 'row', gap: 12, paddingHorizontal: 12, paddingTop: 12 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, padding: 12, paddingBottom: Platform.OS === 'ios' ? 30 : 12 },
   plusBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.lavenderUltra, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.borderSoft },
-  mediaBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.lavenderUltra, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.borderSoft },
+  mediaBtn: { minWidth: 82, height: 54, borderRadius: 16, backgroundColor: Colors.lavenderUltra, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.borderSoft, paddingHorizontal: 12, gap: 4 },
+  mediaLabel: { color: Colors.textBody, fontSize: 11, fontWeight: '700' },
   mediaBtnDisabled: { opacity: 0.5 },
   chatInput: { flex: 1, backgroundColor: Colors.bgInput, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14, color: Colors.textDark, maxHeight: 100, borderWidth: 1, borderColor: Colors.border },
   sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.accentOrange, alignItems: 'center', justifyContent: 'center' },

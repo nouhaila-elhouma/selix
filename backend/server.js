@@ -91,18 +91,21 @@ const uploadMessageFile = multer({
 
 const leadToDb = { Nouveau: 'new', Contacté: 'contacted', Visité: 'qualified', Offre: 'qualified', Signé: 'converted', Perdu: 'lost' };
 const leadFromDb = { new: 'Nouveau', contacted: 'Contacté', qualified: 'Visité', converted: 'Signé', lost: 'Perdu' };
-const apptToDb = { Planifié: 'scheduled', Confirmé: 'confirmed', Effectué: 'completed', Annulé: 'cancelled' };
-const apptFromDb = { scheduled: 'Planifié', confirmed: 'Confirmé', completed: 'Effectué', cancelled: 'Annulé' };
+const apptToDb = { Planifié: 'scheduled', Confirmé: 'confirmed', Effectué: 'completed', Annulé: 'cancelled', 'Report demande': 'reschedule_requested' };
+const apptFromDb = { scheduled: 'Planifié', confirmed: 'Confirmé', completed: 'Effectué', cancelled: 'Annulé', reschedule_requested: 'Report demande' };
 
 const appointmentStatusVariants = {
   scheduled: ['scheduled', 'Planifie', 'Planifié'],
   confirmed: ['confirmed', 'Confirme', 'Confirmé'],
   completed: ['completed', 'Effectue', 'Effectué'],
   cancelled: ['cancelled', 'Annule', 'Annulé'],
+  reschedule_requested: ['reschedule_requested', 'report_demande', 'Report demande'],
 };
 let appointmentStatusColumnType = null;
 let appointmentReminderInterval = null;
 const SIGNED_DEAL_STATUS_VARIANTS = ['Sign\u00E9', 'Signe', 'Sign\\u00E9'];
+const INTEREST_CONFIRMATION_DEADLINE_HOURS = Math.max(1, Number(process.env.INTEREST_CONFIRMATION_DEADLINE_HOURS || 48));
+const ACTIVE_CALL_SESSION_STATUSES = ['ringing', 'accepted'];
 const money = (n) => `${Number(n || 0).toLocaleString('fr-FR')} MAD`;
 const parseJson = (v, fallback) => { try { return v ? (typeof v === 'string' ? JSON.parse(v) : v) : fallback; } catch { return fallback; } };
 const isEmail = (value = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
@@ -412,6 +415,15 @@ function projectScopeEntity(row) {
     cities: [row.city || ''],
     districts: [row.district || ''],
   };
+}
+
+function projectBelongsToPromoter(row, user) {
+  if (!row || !user || user.role !== 'promoter') return false;
+  const rowPromoterId = String(row.promoterId || '').trim();
+  const rowPromoterName = String(row.promoterName || '').trim().toLowerCase();
+  const userId = String(user.userId || user.id || '').trim();
+  const userName = String(user.name || '').trim().toLowerCase();
+  return (!!rowPromoterId && rowPromoterId === userId) || (!!rowPromoterName && rowPromoterName === userName);
 }
 function appointmentScopeEntity(row) {
   return {
@@ -805,10 +817,11 @@ async function formatAppointment(row) {
   const p = properties[0] || {};
   const dt = new Date(row.dateTime);
   const normalizedStatus = normalizeAppointmentStatus(row.status);
+  const lead = row.leadId ? { id: row.leadId } : await resolveLeadForAppointment(row);
   return {
-    id: row.id, leadId: row.clientId, clientName: clients[0]?.name || 'Client', propertyId: row.propertyId, propertyTitle: p.title || row.title,
+    id: row.id, leadId: lead?.id || '', clientName: clients[0]?.name || 'Client', propertyId: row.propertyId, propertyTitle: p.title || row.title,
     commercialId: row.commercialId, commercialName: commercials[0]?.name || '', date: dt.toISOString().slice(0, 10),
-    time: dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), city: p.city || '', status: apptFromDb[normalizedStatus] || 'Planifi\u00E9', notes: row.description || '',
+    time: dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }), city: p.city || '', status: apptFromDb[normalizedStatus] || 'Planifi\u00E9', notes: sanitizeAppointmentNotes(row.description || ''),
   };
 }
 
@@ -886,6 +899,82 @@ function emitConversationRealtime(conversationId, event, payload = {}) {
   io.to(`conversation:${conversationId}`).emit(event, payload);
 }
 
+function formatCallSession(row, viewerUserId = null) {
+  if (!row) return null;
+  const startedAt = row.startedAt || row.createdAt || new Date().toISOString();
+  const answeredAt = row.answeredAt || null;
+  const endedAt = row.endedAt || null;
+  const direction = viewerUserId
+    ? (viewerUserId === row.callerId ? 'outgoing' : viewerUserId === row.receiverId ? 'incoming' : null)
+    : null;
+
+  return {
+    id: row.id,
+    conversationId: row.conversationId,
+    callerId: row.callerId,
+    callerName: row.callerName || '',
+    receiverId: row.receiverId,
+    receiverName: row.receiverName || '',
+    relatedPropertyId: row.relatedPropertyId || null,
+    relatedPropertyTitle: row.relatedPropertyTitle || null,
+    callType: row.callType || 'audio',
+    status: row.status || 'ringing',
+    startedAt,
+    answeredAt,
+    endedAt,
+    durationSec: Number(row.durationSec || 0),
+    direction,
+  };
+}
+
+async function getConversationParticipants(conversationId) {
+  const [rows] = await db.query(
+    `SELECT u.id, u.name, u.role
+     FROM conversation_participants cp
+     JOIN users u ON u.id = cp.userId
+     WHERE cp.conversationId = ?
+     ORDER BY cp.createdAt ASC`,
+    [conversationId],
+  );
+  return rows;
+}
+
+async function getConversationById(conversationId) {
+  const [rows] = await db.query(
+    'SELECT id, relatedPropertyId, relatedPropertyTitle FROM conversations WHERE id = ? LIMIT 1',
+    [conversationId],
+  );
+  return rows[0] || null;
+}
+
+async function getCallSessionById(callId) {
+  const [rows] = await db.query('SELECT * FROM call_sessions WHERE id = ? LIMIT 1', [callId]);
+  return rows[0] || null;
+}
+
+async function getUserActiveCall(userId) {
+  const [rows] = await db.query(
+    `SELECT *
+     FROM call_sessions
+     WHERE (callerId = ? OR receiverId = ?)
+       AND status IN (${ACTIVE_CALL_SESSION_STATUSES.map(() => '?').join(', ')})
+     ORDER BY createdAt DESC
+     LIMIT 1`,
+    [userId, userId, ...ACTIVE_CALL_SESSION_STATUSES],
+  );
+  return rows[0] || null;
+}
+
+async function emitCallSessionUpdate(callId, event = 'call:updated') {
+  const session = await getCallSessionById(callId);
+  if (!session) return null;
+  const callerPayload = formatCallSession(session, session.callerId);
+  const receiverPayload = formatCallSession(session, session.receiverId);
+  emitUserRealtime(session.callerId, event, callerPayload);
+  emitUserRealtime(session.receiverId, event, receiverPayload);
+  return session;
+}
+
 function isExpoPushToken(token) {
   return typeof token === 'string' && /^ExponentPushToken\[[A-Za-z0-9_-]+\]$/.test(token.trim());
 }
@@ -945,9 +1034,10 @@ async function formatAppointment(row) {
   const property = properties[0] || {};
   const dt = new Date(row.dateTime);
   const normalizedStatus = normalizeAppointmentStatus(row.status);
+  const lead = row.leadId ? { id: row.leadId } : await resolveLeadForAppointment(row);
   return {
     id: row.id,
-    leadId: row.clientId,
+    leadId: lead?.id || '',
     clientName: clients[0]?.name || 'Client',
     propertyId: row.propertyId,
     propertyTitle: property.title || row.title,
@@ -959,7 +1049,7 @@ async function formatAppointment(row) {
     time: dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     city: property.city || '',
     status: apptFromDb[normalizedStatus] || 'Planifi\u00E9',
-    notes: row.description || '',
+    notes: sanitizeAppointmentNotes(row.description || ''),
   };
 }
 
@@ -1351,6 +1441,8 @@ function formatInterestConfirmation(row) {
     requestMessage: row.requestMessage || '',
     responseNote: row.responseNote || '',
     requestedAt: row.requestedAt || row.createdAt,
+    expiresAt: row.expiresAt || null,
+    expiredAt: row.expiredAt || null,
     respondedAt: row.respondedAt || null,
     transferredAt: row.transferredAt || null,
     createdAt: row.createdAt,
@@ -1404,6 +1496,24 @@ async function getLatestLeadTransferForLead(leadId) {
   return rows.length ? formatLeadTransfer(rows[0]) : null;
 }
 
+function computeInterestConfirmationExpiry(baseDate = new Date()) {
+  const next = new Date(baseDate);
+  next.setHours(next.getHours() + INTEREST_CONFIRMATION_DEADLINE_HOURS);
+  return next;
+}
+
+async function expirePendingInterestConfirmations() {
+  await db.query(
+    `UPDATE interest_confirmations
+     SET status = 'expired',
+         expiredAt = NOW(),
+         updatedAt = CURRENT_TIMESTAMP
+     WHERE status = 'pending'
+       AND expiresAt IS NOT NULL
+       AND expiresAt < NOW()`,
+  );
+}
+
 async function findLatestAppointmentForLead(lead, propertyId = null) {
   if (!lead?.clientId || !lead?.commercialId) return null;
   const params = [lead.clientId, lead.commercialId];
@@ -1423,6 +1533,74 @@ async function findLatestAppointmentForLead(lead, propertyId = null) {
     params,
   );
   return rows[0] || null;
+}
+
+async function resolveLeadForAppointment(appointment) {
+  if (!appointment?.clientId || !appointment?.commercialId) return null;
+
+  const params = [appointment.clientId, appointment.commercialId];
+  let extraSql = '';
+  if (appointment.projectId) {
+    extraSql = ' AND (projectId = ? OR projectId IS NULL)';
+    params.push(appointment.projectId);
+  }
+
+  let [rows] = await db.query(
+    `SELECT *
+     FROM leads
+     WHERE clientId = ?
+       AND commercialId = ?
+       ${extraSql}
+     ORDER BY updatedAt DESC, createdAt DESC
+     LIMIT 1`,
+    params,
+  );
+  if (!rows.length) {
+    [rows] = await db.query(
+      `SELECT *
+       FROM leads
+       WHERE clientId = ?
+         AND commercialId = ?
+       ORDER BY updatedAt DESC, createdAt DESC
+       LIMIT 1`,
+      [appointment.clientId, appointment.commercialId],
+    );
+  }
+  if (!rows.length) {
+    [rows] = await db.query(
+      `SELECT *
+       FROM leads
+       WHERE clientId = ?
+       ORDER BY updatedAt DESC, createdAt DESC
+       LIMIT 1`,
+      [appointment.clientId],
+    );
+  }
+  return rows[0] || null;
+}
+
+function sanitizeAppointmentNotes(description = '') {
+  const lines = String(description || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const visibleLines = [];
+  let hasRescheduleRequest = false;
+
+  for (const line of lines) {
+    if (/^\d{4}-\d{2}-\d{2}t/i.test(line) && /demande de report client/i.test(line)) {
+      hasRescheduleRequest = true;
+      continue;
+    }
+    visibleLines.push(line);
+  }
+
+  if (hasRescheduleRequest) {
+    visibleLines.push('Le client a demande un autre creneau.');
+  }
+
+  return visibleLines.join('\n');
 }
 
 async function createLeadTransferFromConfirmation(confirmation, actor = null) {
@@ -1768,6 +1946,28 @@ async function scheduleVisitForLead(leadId, userId, requestedDateTime = null) {
      LIMIT 1`,
     [lead.clientId, lead.commercialId, property?.id || null, ...activeStatuses],
   );
+  const safeVisitSideEffects = async (appointmentId, formattedDate, formattedTime) => {
+    try {
+      await notify(lead.clientId, 'Visite mise a jour', `Votre visite est prevue le ${formattedDate} a ${formattedTime}.`, 'visit', appointmentId);
+      await notify(lead.commercialId, 'Visite mise a jour', `La visite de ${client.name} est planifiee le ${formattedDate} a ${formattedTime}.`, 'visit', appointmentId);
+      await logClientTimelineEvent({
+        clientId: lead.clientId,
+        actorRole: 'commercial',
+        actorName: (await getUserById(lead.commercialId))?.name || 'Commercial',
+        actionType: 'visit_scheduled',
+        description: `Une visite a ete planifiee pour ${property?.title || 'votre bien'} le ${formattedDate} a ${formattedTime}.`,
+        targetId: appointmentId,
+        metadata: { propertyId: property?.id || null, propertyTitle: property?.title || '', projectTitle: property?.project || '' },
+      });
+
+      const conversationId = await openLeadConversation(leadId, userId, `Visite planifiee le ${formattedDate} a ${formattedTime}.`);
+      if (conversationId) {
+        await notify(lead.clientId, 'Message de suivi', 'Le detail de votre visite est disponible dans Messages.', 'message', conversationId);
+      }
+    } catch (error) {
+      console.error('scheduleVisitForLead side effects failed:', error?.message || error);
+    }
+  };
   if (existing?.id) {
     if (requestedDateTime) {
       const visitDate = new Date(requestedDateTime);
@@ -1785,22 +1985,7 @@ async function scheduleVisitForLead(leadId, userId, requestedDateTime = null) {
           [property?.id || null, property?.projectId || property?.id || lead.projectId || null, property?.promoterId || lead.promoterId || null, property?.city || lead.city || null, property?.district || lead.district || null, title, description, visitDate, scheduledStatus, existing.id],
         );
 
-        await notify(lead.clientId, 'Visite mise a jour', `Votre visite est prevue le ${formattedDate} a ${formattedTime}.`, 'visit', existing.id);
-        await notify(lead.commercialId, 'Visite mise a jour', `La visite de ${client.name} est planifiee le ${formattedDate} a ${formattedTime}.`, 'visit', existing.id);
-        await logClientTimelineEvent({
-          clientId: lead.clientId,
-          actorRole: 'commercial',
-          actorName: (await getUserById(lead.commercialId))?.name || 'Commercial',
-          actionType: 'visit_scheduled',
-          description: `Une visite a ete planifiee pour ${property?.title || 'votre bien'} le ${formattedDate} a ${formattedTime}.`,
-          targetId: existing.id,
-          metadata: { propertyId: property?.id || null, propertyTitle: property?.title || '', projectTitle: property?.project || '' },
-        });
-
-        const conversationId = await openLeadConversation(leadId, userId, `Visite planifiee le ${formattedDate} a ${formattedTime}.`);
-        if (conversationId) {
-          await notify(lead.clientId, 'Message de suivi', 'Le detail de votre visite est disponible dans Messages.', 'message', conversationId);
-        }
+        await safeVisitSideEffects(existing.id, formattedDate, formattedTime);
       }
     }
     emitUserRealtime(lead.clientId, 'appointments:updated', { appointmentId: existing.id, clientId: lead.clientId });
@@ -1809,12 +1994,6 @@ async function scheduleVisitForLead(leadId, userId, requestedDateTime = null) {
     emitUserRealtime(lead.commercialId, 'leads:updated', { leadId });
     return { appointmentId: existing.id, wasCreated: false, clientId: lead.clientId };
   }
-
-  await db.query(
-    "UPDATE lead_transfers SET transferStatus = 'signed', acknowledgedAt = NOW(), updatedAt = CURRENT_TIMESTAMP WHERE leadId = ?",
-    [deal.leadId],
-  );
-
   const visitDate = requestedDateTime ? new Date(requestedDateTime) : new Date();
   if (!requestedDateTime) {
     visitDate.setDate(visitDate.getDate() + 1);
@@ -1836,22 +2015,7 @@ async function scheduleVisitForLead(leadId, userId, requestedDateTime = null) {
 
   const formattedDate = visitDate.toLocaleDateString('fr-FR');
   const formattedTime = visitDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  await notify(lead.clientId, 'Visite planifiee', `Votre visite est prevue le ${formattedDate} a ${formattedTime}.`, 'visit', appointmentId);
-  await notify(lead.commercialId, 'Visite ajoutee', `La visite de ${client.name} est planifiee le ${formattedDate} a ${formattedTime}.`, 'visit', appointmentId);
-  await logClientTimelineEvent({
-    clientId: lead.clientId,
-    actorRole: 'commercial',
-    actorName: (await getUserById(lead.commercialId))?.name || 'Commercial',
-    actionType: 'visit_scheduled',
-    description: `Une visite a ete planifiee pour ${property?.title || 'votre bien'} le ${formattedDate} a ${formattedTime}.`,
-    targetId: appointmentId,
-    metadata: { propertyId: property?.id || null, propertyTitle: property?.title || '', projectTitle: property?.project || '' },
-  });
-
-  const conversationId = await openLeadConversation(leadId, userId, `Visite planifiee le ${formattedDate} a ${formattedTime}.`);
-  if (conversationId) {
-    await notify(lead.clientId, 'Message de suivi', 'Le detail de votre visite est disponible dans Messages.', 'message', conversationId);
-  }
+  await safeVisitSideEffects(appointmentId, formattedDate, formattedTime);
 
   emitUserRealtime(lead.clientId, 'appointments:updated', { appointmentId, clientId: lead.clientId });
   emitUserRealtime(lead.commercialId, 'appointments:updated', { appointmentId, commercialId: lead.commercialId });
@@ -2358,6 +2522,7 @@ async function createTables() {
     CREATE TABLE IF NOT EXISTS conversations (id VARCHAR(36) PRIMARY KEY, relatedPropertyId VARCHAR(36), relatedPropertyTitle VARCHAR(255), relatedPromoterId VARCHAR(36) NULL, relatedCity VARCHAR(255) NULL, relatedDistrict VARCHAR(255) NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS conversation_participants (id VARCHAR(36) PRIMARY KEY, conversationId VARCHAR(36) NOT NULL, userId VARCHAR(36) NOT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uniq_participant (conversationId, userId));
     CREATE TABLE IF NOT EXISTS messages (id VARCHAR(36) PRIMARY KEY, conversationId VARCHAR(36) NOT NULL, senderId VARCHAR(36) NOT NULL, content TEXT NOT NULL, messageType VARCHAR(16) DEFAULT 'text', deliveredAt DATETIME NULL, readAt DATETIME NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS call_sessions (id VARCHAR(36) PRIMARY KEY, conversationId VARCHAR(36) NOT NULL, callerId VARCHAR(36) NOT NULL, callerName VARCHAR(255) NULL, receiverId VARCHAR(36) NOT NULL, receiverName VARCHAR(255) NULL, relatedPropertyId VARCHAR(36) NULL, relatedPropertyTitle VARCHAR(255) NULL, callType VARCHAR(16) DEFAULT 'audio', status VARCHAR(24) DEFAULT 'ringing', startedAt DATETIME NULL, answeredAt DATETIME NULL, endedAt DATETIME NULL, durationSec INT DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS notifications (id VARCHAR(36) PRIMARY KEY, userId VARCHAR(36) NOT NULL, type VARCHAR(32) DEFAULT 'system', title VARCHAR(255) NOT NULL, body TEXT, readAt DATETIME NULL, targetId VARCHAR(36), createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS timeline_events (id VARCHAR(36) PRIMARY KEY, clientId VARCHAR(36) NOT NULL, actorRole VARCHAR(32) NOT NULL, actorName VARCHAR(255) NULL, actionType VARCHAR(64) NOT NULL, description TEXT NOT NULL, targetId VARCHAR(36) NULL, metadata JSON NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS promoter_commercial_assignments (id VARCHAR(36) PRIMARY KEY, promoterId VARCHAR(36) NOT NULL, commercialId VARCHAR(36) NOT NULL, assignedBy VARCHAR(36) NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
@@ -2368,7 +2533,7 @@ async function createTables() {
     CREATE TABLE IF NOT EXISTS promoter_subscriptions (id VARCHAR(36) PRIMARY KEY, promoterId VARCHAR(36) NOT NULL, planId VARCHAR(36) NOT NULL, planKey VARCHAR(24) NOT NULL, status VARCHAR(24) DEFAULT 'pending', startsAt DATETIME NULL, endsAt DATETIME NULL, activatedAt DATETIME NULL, validatedBy VARCHAR(36) NULL, notes TEXT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS promoter_payment_requests (id VARCHAR(36) PRIMARY KEY, promoterId VARCHAR(36) NOT NULL, subscriptionId VARCHAR(36) NULL, planId VARCHAR(36) NOT NULL, planKey VARCHAR(24) NOT NULL, status VARCHAR(24) DEFAULT 'pending', amountMad INT DEFAULT 0, paymentMethod VARCHAR(32) NULL, paymentReference VARCHAR(255) NULL, proofUrl VARCHAR(500) NULL, notes TEXT NULL, requestedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, validatedAt DATETIME NULL, validatedBy VARCHAR(36) NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS support_requests (id VARCHAR(36) PRIMARY KEY, clientId VARCHAR(36) NOT NULL, category VARCHAR(32) DEFAULT 'question', subject VARCHAR(255) NOT NULL, message TEXT NOT NULL, status VARCHAR(32) DEFAULT 'open', adminNote TEXT NULL, handledBy VARCHAR(36) NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-    CREATE TABLE IF NOT EXISTS interest_confirmations (id VARCHAR(36) PRIMARY KEY, leadId VARCHAR(36) NOT NULL, appointmentId VARCHAR(36) NULL, clientId VARCHAR(36) NOT NULL, clientName VARCHAR(255) NULL, commercialId VARCHAR(36) NOT NULL, commercialName VARCHAR(255) NULL, promoterId VARCHAR(36) NULL, promoterName VARCHAR(255) NULL, propertyId VARCHAR(36) NULL, propertyTitle VARCHAR(255) NULL, projectId VARCHAR(36) NULL, projectTitle VARCHAR(255) NULL, city VARCHAR(255) NULL, district VARCHAR(255) NULL, status VARCHAR(32) DEFAULT 'pending', requestMessage TEXT NULL, responseNote TEXT NULL, requestedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, respondedAt DATETIME NULL, transferredAt DATETIME NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS interest_confirmations (id VARCHAR(36) PRIMARY KEY, leadId VARCHAR(36) NOT NULL, appointmentId VARCHAR(36) NULL, clientId VARCHAR(36) NOT NULL, clientName VARCHAR(255) NULL, commercialId VARCHAR(36) NOT NULL, commercialName VARCHAR(255) NULL, promoterId VARCHAR(36) NULL, promoterName VARCHAR(255) NULL, propertyId VARCHAR(36) NULL, propertyTitle VARCHAR(255) NULL, projectId VARCHAR(36) NULL, projectTitle VARCHAR(255) NULL, city VARCHAR(255) NULL, district VARCHAR(255) NULL, status VARCHAR(32) DEFAULT 'pending', requestMessage TEXT NULL, responseNote TEXT NULL, requestedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, expiresAt DATETIME NULL, expiredAt DATETIME NULL, respondedAt DATETIME NULL, transferredAt DATETIME NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS lead_transfers (id VARCHAR(36) PRIMARY KEY, leadId VARCHAR(36) NOT NULL, interestConfirmationId VARCHAR(36) NULL, clientId VARCHAR(36) NOT NULL, clientName VARCHAR(255) NULL, commercialId VARCHAR(36) NOT NULL, commercialName VARCHAR(255) NULL, promoterId VARCHAR(36) NULL, promoterName VARCHAR(255) NULL, propertyId VARCHAR(36) NULL, propertyTitle VARCHAR(255) NULL, projectId VARCHAR(36) NULL, projectTitle VARCHAR(255) NULL, city VARCHAR(255) NULL, district VARCHAR(255) NULL, transferStatus VARCHAR(32) DEFAULT 'transmitted', transferReason VARCHAR(255) NULL, notes TEXT NULL, transferredAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, acknowledgedAt DATETIME NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
   `);
 
@@ -2489,6 +2654,8 @@ async function createTables() {
       WHEN 'Effectu\u00E9' THEN 'completed'
       WHEN 'Annule' THEN 'cancelled'
       WHEN 'Annul\u00E9' THEN 'cancelled'
+      WHEN 'report_demande' THEN 'reschedule_requested'
+      WHEN 'Report demande' THEN 'reschedule_requested'
       ELSE status
     END
   `);
@@ -2565,6 +2732,26 @@ async function createTables() {
   }
 
   for (const [name, definition] of [
+    ['conversationId', 'VARCHAR(36) NOT NULL'],
+    ['callerId', 'VARCHAR(36) NOT NULL'],
+    ['callerName', 'VARCHAR(255) NULL'],
+    ['receiverId', 'VARCHAR(36) NOT NULL'],
+    ['receiverName', 'VARCHAR(255) NULL'],
+    ['relatedPropertyId', 'VARCHAR(36) NULL'],
+    ['relatedPropertyTitle', 'VARCHAR(255) NULL'],
+    ['callType', "VARCHAR(16) DEFAULT 'audio'"],
+    ['status', "VARCHAR(24) DEFAULT 'ringing'"],
+    ['startedAt', 'DATETIME NULL'],
+    ['answeredAt', 'DATETIME NULL'],
+    ['endedAt', 'DATETIME NULL'],
+    ['durationSec', 'INT DEFAULT 0'],
+    ['createdAt', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
+    ['updatedAt', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'],
+  ]) {
+    await ensureColumn('call_sessions', name, definition);
+  }
+
+  for (const [name, definition] of [
     ['category', "VARCHAR(32) DEFAULT 'question'"],
   ]) {
     await ensureColumn('support_requests', name, definition);
@@ -2589,6 +2776,8 @@ async function createTables() {
     ['requestMessage', 'TEXT NULL'],
     ['responseNote', 'TEXT NULL'],
     ['requestedAt', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'],
+    ['expiresAt', 'DATETIME NULL'],
+    ['expiredAt', 'DATETIME NULL'],
     ['respondedAt', 'DATETIME NULL'],
     ['transferredAt', 'DATETIME NULL'],
   ]) {
@@ -3160,14 +3349,16 @@ app.get('/api/properties/my/matches', auth, async (req, res) => {
   if (req.user.role !== 'client') return res.status(403).json({ error: 'Access denied' });
   const blockedReason = matchingBlockedReasonForUser(req.user);
 
-  const actionRows = await listClientProjectActionRows(req.user.userId, ['liked', 'passed']);
+  const actionRows = await listClientProjectActionRows(req.user.userId, ['liked', 'passed', 'favorited']);
   const likedIds = actionRows.filter((item) => item.actionType === 'liked').map((item) => item.propertyId);
   const passedIds = actionRows.filter((item) => item.actionType === 'passed').map((item) => item.propertyId);
+  const favoritedIds = actionRows.filter((item) => item.actionType === 'favorited').map((item) => item.propertyId);
+  const excludedIds = Array.from(new Set([...likedIds, ...passedIds, ...favoritedIds]));
 
   const [leadRows] = await db.query('SELECT answers FROM leads WHERE clientId = ? ORDER BY createdAt DESC LIMIT 1', [req.user.userId]);
   const answers = leadRows[0] ? parseJson(leadRows[0].answers, {}) : {};
   const available = blockedReason ? [] : (await matchedProperties(answers))
-    .filter((item) => !likedIds.includes(item.id) && !passedIds.includes(item.id));
+    .filter((item) => !excludedIds.includes(item.id));
 
   res.json({
     blockedReason,
@@ -3377,53 +3568,58 @@ app.get('/api/leads/:id', auth, async (req, res) => {
   res.json(await formatLead(rows[0]));
 });
 app.patch('/api/leads/:id/status', auth, async (req, res) => {
-  const [rows] = await db.query('SELECT * FROM leads WHERE id = ?', [req.params.id]);
-  if (!rows.length) return res.status(404).json({ error: 'Lead not found' });
-  if (req.user.role === 'admin' && !canManageAdminCrm(req.user)) return res.status(403).json({ error: 'Access denied' });
-  if (req.user.role === 'admin' && !matchesAccessScope(req.user, await leadScopeEntity(rows[0]))) return res.status(403).json({ error: 'Access denied' });
-  if (req.user.role === 'commercial' && rows[0].commercialId !== req.user.userId) return res.status(403).json({ error: 'Access denied' });
-  if (req.body.status === 'Sign\u00E9' && req.user.role !== 'promoter' && req.user.role !== 'admin') {
-    return res.status(400).json({ error: 'Promoter validation required before finalizing sale' });
-  }
-  await db.query('UPDATE leads SET status = ?, notes = COALESCE(?, notes), updatedAt = CURRENT_TIMESTAMP WHERE id = ?', [leadToDb[req.body.status] || 'new', req.body.note ?? req.body.notes ?? null, req.params.id]);
-  const updatedLead = { ...rows[0], status: leadToDb[req.body.status] || rows[0].status, notes: req.body.note ?? req.body.notes ?? rows[0].notes };
-  await logClientTimelineEvent({
-    clientId: rows[0].clientId,
-    actorRole: req.user.role,
-    actorName: req.user.name,
-    actionType: 'lead_status_updated',
-    description: `Le statut de votre dossier est passe a "${req.body.status}".`,
-    targetId: req.params.id,
-    metadata: { status: req.body.status },
-  });
-  if (req.body.status === 'Contact\u00E9') {
-    const conversationId = await openLeadConversation(req.params.id, req.user.userId, 'Le commercial a pris en charge ce lead. Vous pouvez echanger ici.');
-    if (conversationId) {
-      await notify(req.user.userId, 'Conversation client ouverte', 'La conversation est disponible dans Messages.', 'message', conversationId);
+  try {
+    const [rows] = await db.query('SELECT * FROM leads WHERE id = ?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Lead not found' });
+    if (req.user.role === 'admin' && !canManageAdminCrm(req.user)) return res.status(403).json({ error: 'Access denied' });
+    if (req.user.role === 'admin' && !matchesAccessScope(req.user, await leadScopeEntity(rows[0]))) return res.status(403).json({ error: 'Access denied' });
+    if (req.user.role === 'commercial' && rows[0].commercialId !== req.user.userId) return res.status(403).json({ error: 'Access denied' });
+    if (req.body.status === 'Sign\u00E9' && req.user.role !== 'promoter' && req.user.role !== 'admin') {
+      return res.status(400).json({ error: 'Promoter validation required before finalizing sale' });
     }
-  }
-  if (req.user.role === 'commercial' && rows[0].clientId) {
-    const statusMessage = leadStatusNotificationContent(req.body.status, req.user.name || 'Votre commercial');
-    await notify(rows[0].clientId, statusMessage.title, statusMessage.body, 'lead', req.params.id);
-    if (['Contacté', 'Visité'].includes(req.body.status)) {
-      await notifyPromoterForCommercialLeadAction(updatedLead, req.body.status, req.user.name || 'Commercial');
-    }
-  }
-  if (isVisitedLeadStatus(req.body.status)) {
-    const visitResult = await scheduleVisitForLead(req.params.id, req.user.userId, req.body.visitDateTime || null);
-    if (visitResult?.appointmentId) {
-      await notify(req.user.userId, visitResult.wasCreated ? 'Visite planifiee' : 'Visite mise a jour', 'La visite est visible dans votre espace Visites et attend la confirmation du client.', 'visit', visitResult.appointmentId);
-      if (!visitResult.wasCreated && visitResult.clientId) {
-        await notify(visitResult.clientId, 'Visite mise a jour', 'Votre visite a ete replanifiee. Merci de confirmer votre presence depuis votre espace Visites.', 'visit', visitResult.appointmentId);
+    await db.query('UPDATE leads SET status = ?, notes = COALESCE(?, notes), updatedAt = CURRENT_TIMESTAMP WHERE id = ?', [leadToDb[req.body.status] || 'new', req.body.note ?? req.body.notes ?? null, req.params.id]);
+    const updatedLead = { ...rows[0], status: leadToDb[req.body.status] || rows[0].status, notes: req.body.note ?? req.body.notes ?? rows[0].notes };
+    await logClientTimelineEvent({
+      clientId: rows[0].clientId,
+      actorRole: req.user.role,
+      actorName: req.user.name,
+      actionType: 'lead_status_updated',
+      description: `Le statut de votre dossier est passe a "${req.body.status}".`,
+      targetId: req.params.id,
+      metadata: { status: req.body.status },
+    });
+    if (req.body.status === 'Contact\u00E9') {
+      const conversationId = await openLeadConversation(req.params.id, req.user.userId, 'Le commercial a pris en charge ce lead. Vous pouvez echanger ici.');
+      if (conversationId) {
+        await notify(req.user.userId, 'Conversation client ouverte', 'La conversation est disponible dans Messages.', 'message', conversationId);
       }
     }
+    if (req.user.role === 'commercial' && rows[0].clientId) {
+      const statusMessage = leadStatusNotificationContent(req.body.status, req.user.name || 'Votre commercial');
+      await notify(rows[0].clientId, statusMessage.title, statusMessage.body, 'lead', req.params.id);
+      if (['Contacté', 'Visité'].includes(req.body.status)) {
+        await notifyPromoterForCommercialLeadAction(updatedLead, req.body.status, req.user.name || 'Commercial');
+      }
+    }
+    if (isVisitedLeadStatus(req.body.status)) {
+      const visitResult = await scheduleVisitForLead(req.params.id, req.user.userId, req.body.visitDateTime || null);
+      if (visitResult?.appointmentId) {
+        await notify(req.user.userId, visitResult.wasCreated ? 'Visite planifiee' : 'Visite mise a jour', 'La visite est visible dans votre espace Visites et attend la confirmation du client.', 'visit', visitResult.appointmentId);
+        if (!visitResult.wasCreated && visitResult.clientId) {
+          await notify(visitResult.clientId, 'Visite mise a jour', 'Votre visite a ete replanifiee. Merci de confirmer votre presence depuis votre espace Visites.', 'visit', visitResult.appointmentId);
+        }
+      }
+    }
+    if (req.body.status === 'Offre') {
+      await createPendingDealFromLead(req.params.id);
+    }
+    emitUserRealtime(rows[0].clientId, 'leads:updated', { leadId: req.params.id });
+    if (rows[0].commercialId) emitUserRealtime(rows[0].commercialId, 'leads:updated', { leadId: req.params.id });
+    res.json({ message: 'Lead status updated successfully' });
+  } catch (error) {
+    console.error('PATCH /api/leads/:id/status failed:', error?.message || error);
+    res.status(500).json({ error: error?.message || 'Unable to update lead status' });
   }
-  if (req.body.status === 'Offre') {
-    await createPendingDealFromLead(req.params.id);
-  }
-  emitUserRealtime(rows[0].clientId, 'leads:updated', { leadId: req.params.id });
-  if (rows[0].commercialId) emitUserRealtime(rows[0].commercialId, 'leads:updated', { leadId: req.params.id });
-  res.json({ message: 'Lead status updated successfully' });
 });
 app.patch('/api/leads/:id/notes', auth, async (req, res) => {
   const [rows] = await db.query('SELECT * FROM leads WHERE id = ? LIMIT 1', [req.params.id]);
@@ -3552,6 +3748,31 @@ app.patch('/api/appointments/:id/status', auth, async (req, res) => {
       metadata: { status: req.body.status },
     });
   }
+  if ((req.user.role === 'commercial' || req.user.role === 'admin') && normalizeAppointmentStatus(storageStatus) === 'completed') {
+    const formatted = await formatAppointment({ ...appointment, status: storageStatus });
+    await notify(
+      appointment.clientId,
+      'Visite effectuee',
+      `Votre visite pour ${formatted.propertyTitle} a bien ete enregistree comme effectuee.`,
+      'visit',
+      req.params.id,
+    );
+    await notifyPromoterForAppointmentAction(
+      appointment,
+      formatted,
+      'Visite effectuee',
+      `${formatted.commercialName || req.user.name || 'Un commercial'} a marque la visite de ${formatted.clientName} comme effectuee pour "${formatted.propertyTitle}".`,
+    );
+    await logClientTimelineEvent({
+      clientId: appointment.clientId,
+      actorRole: req.user.role,
+      actorName: req.user.name,
+      actionType: 'visit_completed',
+      description: `La visite pour ${formatted.propertyTitle} a ete marquee comme effectuee.`,
+      targetId: req.params.id,
+      metadata: { status: req.body.status },
+    });
+  }
   emitUserRealtime(appointment.clientId, 'appointments:updated', { appointmentId: req.params.id, clientId: appointment.clientId });
   emitUserRealtime(appointment.commercialId, 'appointments:updated', { appointmentId: req.params.id, commercialId: appointment.commercialId });
   res.json({ ok: true });
@@ -3568,10 +3789,11 @@ app.post('/api/appointments/:id/reschedule-request', auth, async (req, res) => {
     appointment.description || '',
     `${new Date().toISOString()}: demande de report client${requestNote ? ` - ${requestNote}` : ''}`,
   ].filter(Boolean).join('\n');
+  const rescheduleRequestedStatus = await resolveAppointmentStorageStatus('reschedule_requested');
 
   await db.query(
-    'UPDATE appointments SET description = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
-    [nextDescription, req.params.id],
+    'UPDATE appointments SET description = ?, status = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?',
+    [nextDescription, rescheduleRequestedStatus, req.params.id],
   );
 
   await notify(
@@ -3622,6 +3844,7 @@ app.delete('/api/appointments/:id', auth, async (req, res) => {
 });
 
 app.get('/api/interest-confirmations', auth, async (req, res) => {
+  await expirePendingInterestConfirmations();
   if (req.user.role === 'admin' && !canReadAdminCrm(req.user)) return res.status(403).json({ error: 'Access denied' });
   if (req.user.role === 'promoter' && await rejectIfPromoterRestricted(req, res) === false) return;
 
@@ -3657,12 +3880,23 @@ app.get('/api/interest-confirmations', auth, async (req, res) => {
 });
 
 app.post('/api/interest-confirmations', auth, async (req, res) => {
+  await expirePendingInterestConfirmations();
   if (req.user.role === 'admin' && !canManageAdminCrm(req.user)) return res.status(403).json({ error: 'Access denied' });
   if (req.user.role !== 'commercial' && req.user.role !== 'admin') return res.status(403).json({ error: 'Access denied' });
 
-  const [leadRows] = await db.query('SELECT * FROM leads WHERE id = ? LIMIT 1', [req.body.leadId]);
-  if (!leadRows.length) return res.status(404).json({ error: 'Lead not found' });
-  const lead = leadRows[0];
+  const appointment = req.body.appointmentId
+    ? (await db.query('SELECT * FROM appointments WHERE id = ? LIMIT 1', [req.body.appointmentId]))[0][0]
+    : null;
+  let lead = req.body.leadId
+    ? (await db.query('SELECT * FROM leads WHERE id = ? LIMIT 1', [req.body.leadId]))[0][0]
+    : await resolveLeadForAppointment(appointment);
+  if (!lead?.id && appointment?.clientId && appointment?.propertyId) {
+    const ensured = await ensureLeadForClientInterest(appointment.clientId, appointment.propertyId, 'interesse apres visite');
+    if (ensured?.leadId) {
+      lead = (await db.query('SELECT * FROM leads WHERE id = ? LIMIT 1', [ensured.leadId]))[0][0];
+    }
+  }
+  if (!lead?.id) return res.status(404).json({ error: 'Lead not found' });
 
   if (req.user.role === 'admin' && !matchesAccessScope(req.user, await leadScopeEntity(lead))) return res.status(403).json({ error: 'Access denied' });
   if (req.user.role === 'commercial' && lead.commercialId !== req.user.userId) return res.status(403).json({ error: 'Access denied' });
@@ -3675,10 +3909,17 @@ app.post('/api/interest-confirmations', auth, async (req, res) => {
 
   const property = await pickBestPropertyForLead(lead);
   const promoter = property ? await resolvePromoterForProperty(property) : null;
-  const appointment = req.body.appointmentId
-    ? (await db.query('SELECT * FROM appointments WHERE id = ? LIMIT 1', [req.body.appointmentId]))[0][0]
+  const effectiveAppointment = appointment?.id
+    ? appointment
     : await findLatestAppointmentForLead(lead, property?.id || null);
-  if (!appointment?.id) return res.status(400).json({ error: 'A visit is required before sending an interest confirmation' });
+  if (!effectiveAppointment?.id) return res.status(400).json({ error: 'A visit is required before sending an interest confirmation' });
+  const [[existingForAppointment]] = await db.query(
+    'SELECT id, status FROM interest_confirmations WHERE appointmentId = ? ORDER BY requestedAt DESC, createdAt DESC LIMIT 1',
+    [effectiveAppointment.id],
+  );
+  if (existingForAppointment?.id) {
+    return res.status(400).json({ error: existingForAppointment.status === 'pending' ? 'An interest confirmation has already been sent for this visit' : 'This visit already has an interest decision' });
+  }
 
   const [clientRows] = await db.query('SELECT id, name FROM users WHERE id = ? LIMIT 1', [lead.clientId]);
   if (!clientRows.length) return res.status(400).json({ error: 'Client not found' });
@@ -3686,6 +3927,7 @@ app.post('/api/interest-confirmations', auth, async (req, res) => {
   if (!commercialRows.length) return res.status(400).json({ error: 'Commercial not found' });
 
   const id = randomUUID();
+  const expiresAt = computeInterestConfirmationExpiry();
   const requestMessage = String(req.body.requestMessage || '').trim()
     || `Suite a votre visite, merci de confirmer si vous souhaitez avancer sur ${property?.title || 'ce projet'}.`;
 
@@ -3693,12 +3935,12 @@ app.post('/api/interest-confirmations', auth, async (req, res) => {
     `INSERT INTO interest_confirmations (
       id, leadId, appointmentId, clientId, clientName, commercialId, commercialName,
       promoterId, promoterName, propertyId, propertyTitle, projectId, projectTitle,
-      city, district, status, requestMessage
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      city, district, status, requestMessage, expiresAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
     [
       id,
       lead.id,
-      appointment.id,
+      effectiveAppointment.id,
       lead.clientId,
       clientRows[0].name || '',
       lead.commercialId,
@@ -3712,6 +3954,7 @@ app.post('/api/interest-confirmations', auth, async (req, res) => {
       property?.city || lead.city || '',
       property?.district || lead.district || '',
       requestMessage,
+      expiresAt,
     ],
   );
 
@@ -3756,6 +3999,7 @@ app.post('/api/interest-confirmations', auth, async (req, res) => {
 });
 
 app.patch('/api/interest-confirmations/:id/respond', auth, async (req, res) => {
+  await expirePendingInterestConfirmations();
   const [rows] = await db.query('SELECT * FROM interest_confirmations WHERE id = ? LIMIT 1', [req.params.id]);
   if (!rows.length) return res.status(404).json({ error: 'Interest confirmation not found' });
   const confirmation = rows[0];
@@ -3769,6 +4013,7 @@ app.patch('/api/interest-confirmations/:id/respond', auth, async (req, res) => {
   })) return res.status(403).json({ error: 'Access denied' });
   if (req.user.role === 'client' && confirmation.clientId !== req.user.userId) return res.status(403).json({ error: 'Access denied' });
   if (req.user.role !== 'client' && req.user.role !== 'admin') return res.status(403).json({ error: 'Access denied' });
+  if (String(confirmation.status || '') === 'expired') return res.status(400).json({ error: 'The confirmation deadline has passed' });
   if (String(confirmation.status || '') !== 'pending') return res.status(400).json({ error: 'This request has already been answered' });
 
   const responseStatus = ['confirmed', 'declined', 'needs_followup'].includes(String(req.body.status || ''))
@@ -3911,6 +4156,126 @@ app.get('/api/lead-transfers', auth, async (req, res) => {
     items.push(formatLeadTransfer(row));
   }
   res.json(items);
+});
+
+app.get('/api/calls/history', auth, async (req, res) => {
+  const [rows] = await db.query(
+    `SELECT *
+     FROM call_sessions
+     WHERE callerId = ? OR receiverId = ?
+     ORDER BY COALESCE(startedAt, createdAt) DESC, createdAt DESC
+     LIMIT 100`,
+    [req.user.userId, req.user.userId],
+  );
+  res.json(rows.map((row) => formatCallSession(row, req.user.userId)));
+});
+
+app.post('/api/calls/start', auth, async (req, res) => {
+  const conversationId = String(req.body.conversationId || '').trim();
+  if (!conversationId) return res.status(400).json({ error: 'conversationId is required' });
+
+  const conversation = await getConversationById(conversationId);
+  if (!conversation) return res.status(404).json({ error: 'Conversation not found' });
+
+  const participants = await getConversationParticipants(conversationId);
+  if (!participants.some((participant) => participant.id === req.user.userId)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  const receiver = participants.find((participant) => participant.id !== req.user.userId) || null;
+  if (!receiver) return res.status(400).json({ error: 'No counterpart available for this conversation' });
+
+  const callerActive = await getUserActiveCall(req.user.userId);
+  if (callerActive) {
+    return res.status(409).json({ error: 'Vous avez deja un appel en cours.', session: formatCallSession(callerActive, req.user.userId) });
+  }
+  const receiverActive = await getUserActiveCall(receiver.id);
+  if (receiverActive) {
+    return res.status(409).json({ error: 'Le contact est deja en ligne sur un autre appel.', session: formatCallSession(receiverActive, req.user.userId) });
+  }
+
+  const caller = await getUserById(req.user.userId);
+  const sessionId = randomUUID();
+  await db.query(
+    `INSERT INTO call_sessions (
+      id, conversationId, callerId, callerName, receiverId, receiverName,
+      relatedPropertyId, relatedPropertyTitle, callType, status, startedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'audio', 'ringing', NOW())`,
+    [
+      sessionId,
+      conversationId,
+      req.user.userId,
+      caller?.name || req.user.name || 'Utilisateur Selix',
+      receiver.id,
+      receiver.name || 'Contact Selix',
+      conversation.relatedPropertyId || null,
+      conversation.relatedPropertyTitle || null,
+    ],
+  );
+
+  await notify(
+    receiver.id,
+    'Appel Selix entrant',
+    `${caller?.name || 'Un utilisateur'} vous appelle dans Selix.`,
+    'message',
+    sessionId,
+  );
+
+  const session = await emitCallSessionUpdate(sessionId);
+  res.status(201).json(formatCallSession(session, req.user.userId));
+});
+
+app.patch('/api/calls/:id/respond', auth, async (req, res) => {
+  const action = String(req.body.action || '').trim().toLowerCase();
+  if (!['accept', 'reject'].includes(action)) return res.status(400).json({ error: 'Invalid call response action' });
+
+  const session = await getCallSessionById(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Call not found' });
+  if (session.receiverId !== req.user.userId) return res.status(403).json({ error: 'Access denied' });
+  if (session.status !== 'ringing') return res.status(400).json({ error: 'Call is no longer awaiting a response' });
+
+  const nextStatus = action === 'accept' ? 'accepted' : 'rejected';
+  await db.query(
+    `UPDATE call_sessions
+     SET status = ?, answeredAt = CASE WHEN ? = 'accepted' THEN NOW() ELSE answeredAt END,
+         endedAt = CASE WHEN ? = 'rejected' THEN NOW() ELSE endedAt END,
+         updatedAt = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [nextStatus, nextStatus, nextStatus, req.params.id],
+  );
+
+  const updated = await emitCallSessionUpdate(req.params.id);
+  if (nextStatus === 'accepted') {
+    await notify(session.callerId, 'Appel Selix accepte', `${session.receiverName || 'Votre contact'} a accepte votre appel.`, 'message', req.params.id);
+  } else {
+    await notify(session.callerId, 'Appel Selix refuse', `${session.receiverName || 'Votre contact'} a refuse votre appel.`, 'message', req.params.id);
+  }
+  res.json(formatCallSession(updated, req.user.userId));
+});
+
+app.patch('/api/calls/:id/end', auth, async (req, res) => {
+  const session = await getCallSessionById(req.params.id);
+  if (!session) return res.status(404).json({ error: 'Call not found' });
+  if (![session.callerId, session.receiverId].includes(req.user.userId)) return res.status(403).json({ error: 'Access denied' });
+  if (['ended', 'rejected', 'cancelled', 'missed'].includes(String(session.status || ''))) {
+    return res.json(formatCallSession(session, req.user.userId));
+  }
+
+  const nextStatus = session.status === 'accepted' ? 'ended' : session.callerId === req.user.userId ? 'cancelled' : 'missed';
+  await db.query(
+    `UPDATE call_sessions
+     SET status = ?, endedAt = NOW(),
+         durationSec = CASE
+           WHEN answeredAt IS NOT NULL THEN GREATEST(TIMESTAMPDIFF(SECOND, answeredAt, NOW()), 0)
+           ELSE durationSec
+         END,
+         updatedAt = CURRENT_TIMESTAMP
+     WHERE id = ?`,
+    [nextStatus, req.params.id],
+  );
+
+  const updated = await emitCallSessionUpdate(req.params.id);
+  res.json(formatCallSession(updated, req.user.userId));
 });
 
 app.get('/api/conversations', auth, async (req, res) => {
@@ -4123,7 +4488,10 @@ app.get('/api/projects', auth, async (req, res) => {
   if (!canReadProjects(req.user)) return res.status(403).json({ error: 'Access denied' });
   if (await rejectIfPromoterRestricted(req, res) === false) return;
   let sql = 'SELECT * FROM projects', params = [];
-  if (req.user.role === 'promoter') { sql += ' WHERE promoterId = ?'; params = [req.user.userId]; }
+  if (req.user.role === 'promoter') {
+    sql += ' WHERE promoterId = ? OR LOWER(TRIM(promoterName)) = LOWER(TRIM(?))';
+    params = [req.user.userId, req.user.name || ''];
+  }
   sql += ' ORDER BY createdAt DESC';
   const [rows] = await db.query(sql, params);
   const items = [];
@@ -4138,7 +4506,7 @@ app.get('/api/projects/:id', auth, async (req, res) => {
   if (!canReadProjects(req.user)) return res.status(403).json({ error: 'Access denied' });
   if (await rejectIfPromoterRestricted(req, res) === false) return;
   if (!matchesAccessScope(req.user, projectScopeEntity(rows[0]))) return res.status(403).json({ error: 'Access denied' });
-  if (req.user.role === 'promoter' && rows[0].promoterId !== req.user.userId) return res.status(403).json({ error: 'Access denied' });
+  if (req.user.role === 'promoter' && !projectBelongsToPromoter(rows[0], req.user)) return res.status(403).json({ error: 'Access denied' });
   return res.json(await formatProjectWithUnits(rows[0]));
 });
 app.get('/api/projects/:id/units', auth, async (req, res) => {
@@ -4147,7 +4515,7 @@ app.get('/api/projects/:id/units', auth, async (req, res) => {
   if (!canReadProjects(req.user)) return res.status(403).json({ error: 'Access denied' });
   if (await rejectIfPromoterRestricted(req, res) === false) return;
   if (!matchesAccessScope(req.user, projectScopeEntity(rows[0]))) return res.status(403).json({ error: 'Access denied' });
-  if (req.user.role === 'promoter' && rows[0].promoterId !== req.user.userId) return res.status(403).json({ error: 'Access denied' });
+  if (req.user.role === 'promoter' && !projectBelongsToPromoter(rows[0], req.user)) return res.status(403).json({ error: 'Access denied' });
   res.json(await listProjectUnits(req.params.id));
 });
 app.post('/api/uploads/project-image', auth, (req, res) => {
@@ -4526,6 +4894,7 @@ app.get('/api/promoter/payment-requests', auth, async (req, res) => {
 
 app.get('/api/promoter/team', auth, async (req, res) => {
   if (req.user.role !== 'promoter') return res.status(403).json({ error: 'Access denied' });
+  if (await rejectIfPromoterRestricted(req, res) === false) return;
   const [rows] = await db.query(`
     SELECT
       u.id,
@@ -4534,16 +4903,20 @@ app.get('/api/promoter/team', auth, async (req, res) => {
       u.phone,
       COUNT(DISTINCT l.id) AS totalLeads,
       SUM(CASE WHEN l.temperature = 'hot' THEN 1 ELSE 0 END) AS hotLeads,
+      COUNT(DISTINCT a.id) AS totalVisits,
+      COUNT(DISTINCT CASE WHEN lt.transferStatus IS NOT NULL THEN lt.id ELSE NULL END) AS qualifiedTransfers,
       COUNT(DISTINCT d.id) AS totalDeals,
       COALESCE(SUM(CASE WHEN d.status IN (?, ?, ?) THEN d.salePrice ELSE 0 END), 0) AS signedRevenue
     FROM promoter_commercial_assignments a
     JOIN users u ON u.id = a.commercialId
     LEFT JOIN leads l ON l.commercialId = u.id
+    LEFT JOIN appointments a2 ON a2.commercialId = u.id AND a2.promoterId = a.promoterId
+    LEFT JOIN lead_transfers lt ON lt.commercialId = u.id AND lt.promoterId = a.promoterId
     LEFT JOIN deals d ON d.commercialId = u.id AND d.promoterId = a.promoterId
     WHERE a.promoterId = ?
     GROUP BY u.id, u.name, u.email, u.phone
     ORDER BY u.name ASC
-  `, [req.user.userId]);
+  `, [...SIGNED_DEAL_STATUS_VARIANTS, req.user.userId]);
   res.json(rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -4551,18 +4924,47 @@ app.get('/api/promoter/team', auth, async (req, res) => {
     phone: row.phone,
     totalLeads: Number(row.totalLeads || 0),
     hotLeads: Number(row.hotLeads || 0),
+    totalVisits: Number(row.totalVisits || 0),
+    qualifiedTransfers: Number(row.qualifiedTransfers || 0),
     totalDeals: Number(row.totalDeals || 0),
     signedRevenue: Number(row.signedRevenue || 0),
   })));
 });
 app.get('/api/promoter/summary', auth, async (req, res) => {
   if (req.user.role !== 'promoter') return res.status(403).json({ error: 'Access denied' });
+  const access = await ensurePromoterCanUseBusinessFeatures(req.user);
+  if (!access.ok) {
+    return res.json({
+      teamSize: 0,
+      projectCount: 0,
+      soldUnits: 0,
+      availableUnits: 0,
+      teamLeads: 0,
+      teamHotLeads: 0,
+      totalMatches: 0,
+      totalVisits: 0,
+      qualifiedTransfers: 0,
+      totalDeals: 0,
+      signedRevenue: 0,
+      subscription: {
+        accountStatus: access.snapshot?.accountStatus || null,
+        subscriptionStatus: access.snapshot?.subscriptionStatus || null,
+        planKey: access.snapshot?.planKey || null,
+        startsAt: access.snapshot?.startsAt || null,
+        endsAt: access.snapshot?.endsAt || null,
+        restrictedReason: access.error,
+      },
+    });
+  }
   const commercialIds = await getCommercialIdsForPromoter(req.user.userId);
   const commercialPlaceholders = commercialIds.length ? commercialIds.map(() => '?').join(', ') : null;
   const [[projectCount]] = await db.query('SELECT COUNT(*) AS total FROM projects WHERE promoterId = ?', [req.user.userId]);
   const [[soldUnits]] = await db.query('SELECT COALESCE(SUM(soldUnits), 0) AS total FROM projects WHERE promoterId = ?', [req.user.userId]);
   const [[availableUnits]] = await db.query('SELECT COALESCE(SUM(availableUnits), 0) AS total FROM projects WHERE promoterId = ?', [req.user.userId]);
   const [[dealCount]] = await db.query('SELECT COUNT(*) AS total FROM deals WHERE promoterId = ?', [req.user.userId]);
+  const [[matchCount]] = await db.query('SELECT COUNT(*) AS total FROM matches WHERE promoterId = ?', [req.user.userId]);
+  const [[visitCount]] = await db.query('SELECT COUNT(*) AS total FROM appointments WHERE promoterId = ?', [req.user.userId]);
+  const [[transferCount]] = await db.query('SELECT COUNT(*) AS total FROM lead_transfers WHERE promoterId = ?', [req.user.userId]);
   const [[signedRevenue]] = await db.query(
     `SELECT COALESCE(SUM(salePrice), 0) AS total
      FROM deals
@@ -4589,8 +4991,19 @@ app.get('/api/promoter/summary', auth, async (req, res) => {
     availableUnits: Number(availableUnits.total || 0),
     teamLeads,
     teamHotLeads,
+    totalMatches: Number(matchCount.total || 0),
+    totalVisits: Number(visitCount.total || 0),
+    qualifiedTransfers: Number(transferCount.total || 0),
     totalDeals: Number(dealCount.total || 0),
     signedRevenue: Number(signedRevenue.total || 0),
+    subscription: {
+      accountStatus: access.snapshot?.accountStatus || 'active',
+      subscriptionStatus: access.snapshot?.subscriptionStatus || 'active',
+      planKey: access.snapshot?.planKey || null,
+      startsAt: access.snapshot?.startsAt || null,
+      endsAt: access.snapshot?.endsAt || null,
+      restrictedReason: null,
+    },
   });
 });
 app.get('/api/admin/stats', auth, async (req, res) => {
@@ -4896,6 +5309,7 @@ app.delete('/api/admin/users/:id', auth, async (req, res) => {
   await db.query('DELETE FROM swipes WHERE userId = ?', [req.params.id]);
   await db.query('DELETE FROM notifications WHERE userId = ?', [req.params.id]);
   await db.query('DELETE FROM conversation_participants WHERE userId = ?', [req.params.id]);
+  await db.query('DELETE FROM call_sessions WHERE callerId = ? OR receiverId = ?', [req.params.id, req.params.id]);
   await db.query('DELETE FROM promoter_commercial_assignments WHERE promoterId = ? OR commercialId = ?', [req.params.id, req.params.id]);
   await db.query('DELETE FROM project_commercial_assignments WHERE commercialId = ?', [req.params.id]);
   await db.query('DELETE FROM interest_confirmations WHERE clientId = ? OR commercialId = ? OR promoterId = ?', [req.params.id, req.params.id, req.params.id]);
@@ -5142,6 +5556,10 @@ io.on('connection', (socket) => {
   socket.on('leave-conversation', (conversationId) => {
     if (!conversationId) return;
     socket.leave(`conversation:${conversationId}`);
+  });
+  socket.on('call:signal', ({ targetUserId, sessionId, payload }) => {
+    if (!targetUserId || !sessionId) return;
+    emitUserRealtime(targetUserId, 'call:signal', { sessionId, payload: payload || null });
   });
   socket.on('disconnect', () => console.log('socket disconnected', socket.id));
 });

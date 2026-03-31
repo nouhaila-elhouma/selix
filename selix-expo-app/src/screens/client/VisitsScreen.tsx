@@ -20,21 +20,29 @@ function uniqueById<T extends { id: string }>(items: T[]) {
 const STATUS_LABELS: Record<string, string> = {
   Planifie: 'En attente',
   'Planifié': 'En attente',
-  Confirme: 'Confirmé',
-  'Confirmé': 'Confirmé',
-  Effectue: 'Effectué',
-  'Effectué': 'Effectué',
-  Annule: 'Annulé',
-  'Annulé': 'Annulé',
+  scheduled: 'En attente',
+  Confirme: 'Confirme',
+  'Confirmé': 'Confirme',
+  confirmed: 'Confirme',
+  Effectue: 'Effectue',
+  'Effectué': 'Effectue',
+  completed: 'Effectue',
+  Annule: 'Annule',
+  'Annulé': 'Annule',
+  cancelled: 'Annule',
+  report_demande: 'Report demande',
+  reschedule_requested: 'Report demande',
+  'Report demande': 'Report demande',
 };
 
-const UPCOMING_STATUSES = new Set(['En attente', 'Confirmé']);
+const UPCOMING_STATUSES = new Set(['En attente', 'Confirme', 'Report demande']);
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   'En attente': { bg: Colors.warningLight, text: Colors.warning },
-  Confirmé: { bg: Colors.successLight, text: Colors.success },
-  Effectué: { bg: Colors.infoLight, text: Colors.info },
-  Annulé: { bg: Colors.dangerLight, text: Colors.danger },
+  Confirme: { bg: Colors.successLight, text: Colors.success },
+  Effectue: { bg: Colors.infoLight, text: Colors.info },
+  Annule: { bg: Colors.dangerLight, text: Colors.danger },
+  'Report demande': { bg: Colors.warningLight, text: Colors.accentOrange },
 };
 
 function formatDateLabel(value: string) {
@@ -53,6 +61,13 @@ function formatMonthLabel(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase();
+}
+
+function formatDeadlineLabel(value?: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })} a ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 function getDisplayStatus(status: string) {
@@ -97,20 +112,39 @@ export function VisitsScreen() {
     upcoming: appointments.filter((item) => isUpcomingStatus(item.status)),
     past: appointments.filter((item) => !isUpcomingStatus(item.status)),
   }), [appointments]);
-  const pendingConfirmations = useMemo(
-    () => confirmations.filter((item) => item.status === 'pending'),
-    [confirmations],
-  );
-  const answeredConfirmations = useMemo(
-    () => confirmations.filter((item) => item.status !== 'pending'),
-    [confirmations],
-  );
+
+  const pendingConfirmations = useMemo(() => confirmations.filter((item) => item.status === 'pending'), [confirmations]);
+  const answeredConfirmations = useMemo(() => confirmations.filter((item) => item.status !== 'pending'), [confirmations]);
 
   const renderVisit = (appointment: Appointment) => {
     const displayStatus = getDisplayStatus(appointment.status);
     const statusColors = STATUS_COLORS[displayStatus] || { bg: Colors.bgSoft, text: Colors.textSoft };
+    const linkedConfirmation = confirmations.find((item) => item.appointmentId === appointment.id)
+      || confirmations.find((item) => item.leadId && appointment.leadId && item.leadId === appointment.leadId);
+    const confirmationLabel = linkedConfirmation
+      ? linkedConfirmation.status === 'pending'
+        ? 'Confirmation en attente'
+        : linkedConfirmation.status === 'confirmed'
+          ? 'Interet confirme'
+          : linkedConfirmation.status === 'declined'
+            ? 'Interet refuse'
+            : linkedConfirmation.status === 'expired'
+              ? 'Confirmation expiree'
+            : 'Suivi demande'
+      : '';
+    const confirmationColors = linkedConfirmation
+      ? linkedConfirmation.status === 'confirmed'
+        ? { bg: Colors.successLight, text: Colors.success }
+        : linkedConfirmation.status === 'declined'
+          ? { bg: Colors.dangerLight, text: Colors.danger }
+          : linkedConfirmation.status === 'expired'
+            ? { bg: Colors.dangerLight, text: Colors.danger }
+          : linkedConfirmation.status === 'needs_followup'
+            ? { bg: Colors.lavenderUltra, text: Colors.primary }
+            : { bg: Colors.warningLight, text: Colors.warning }
+      : null;
     const canConfirmPresence = displayStatus === 'En attente';
-    const canRequestReschedule = isUpcomingStatus(appointment.status);
+    const canRequestReschedule = displayStatus !== 'Effectue' && displayStatus !== 'Annule';
 
     return (
       <View key={appointment.id} style={styles.card}>
@@ -147,6 +181,18 @@ export function VisitsScreen() {
             <Text style={styles.metaText}>{appointment.commercialName || t('visits.commercialPending')}</Text>
           </View>
 
+          {confirmationLabel && confirmationColors ? (
+            <>
+              <View style={[styles.confirmationInfoBadge, { backgroundColor: confirmationColors.bg }]}>
+                <Ionicons name="sparkles-outline" size={13} color={confirmationColors.text} />
+                <Text style={[styles.confirmationInfoText, { color: confirmationColors.text }]}>{confirmationLabel}</Text>
+              </View>
+              {linkedConfirmation?.status === 'pending' && linkedConfirmation.expiresAt ? (
+                <Text style={styles.deadlineText}>A confirmer avant le {formatDeadlineLabel(linkedConfirmation.expiresAt)}</Text>
+              ) : null}
+            </>
+          ) : null}
+
           {appointment.notes ? (
             <View style={styles.notesBox}>
               <Text style={styles.notesText}>{appointment.notes}</Text>
@@ -162,7 +208,7 @@ export function VisitsScreen() {
                   onPress={async () => {
                     try {
                       setConfirmingId(appointment.id);
-                      await Appointments.updateStatus(appointment.id, 'Confirmé');
+                      await Appointments.updateStatus(appointment.id, 'Confirme');
                       await loadAppointments();
                       Alert.alert(t('visits.title'), 'Votre presence a ete confirmee.');
                     } catch (error: any) {
@@ -307,20 +353,12 @@ export function VisitsScreen() {
             </View>
           </View>
         )) : (
-          <EmptyState
-            icon="sparkles-outline"
-            title="Aucune confirmation en attente"
-            subtitle="Les demandes de confirmation d interet apparaitront ici apres vos visites."
-          />
+          <EmptyState icon="sparkles-outline" title="Aucune confirmation en attente" subtitle="Les demandes de confirmation d interet apparaitront ici apres vos visites." />
         )}
 
         <SectionHeader title={t('visits.upcoming')} />
         {upcoming.length ? upcoming.map(renderVisit) : (
-          <EmptyState
-            icon="calendar-outline"
-            title={t('visits.empty')}
-            subtitle={t('visits.emptySub')}
-          />
+          <EmptyState icon="calendar-outline" title={t('visits.empty')} subtitle={t('visits.emptySub')} />
         )}
 
         {past.length ? (
@@ -359,37 +397,11 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.72)', marginTop: 4 },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 100 },
-  helperCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: Colors.bgCard,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.borderSoft,
-  },
+  helperCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: Colors.bgCard, borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: Colors.borderSoft },
   helperText: { flex: 1, fontSize: 13, lineHeight: 18, color: Colors.textSoft },
-  card: {
-    flexDirection: 'row',
-    gap: 12,
-    backgroundColor: Colors.bgCard,
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderSoft,
-  },
+  card: { flexDirection: 'row', gap: 12, backgroundColor: Colors.bgCard, borderRadius: 18, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: Colors.borderSoft },
   dateColumn: { justifyContent: 'flex-start' },
-  dateBadge: {
-    width: 56,
-    height: 60,
-    borderRadius: 16,
-    backgroundColor: Colors.lavenderUltra,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  dateBadge: { width: 56, height: 60, borderRadius: 16, backgroundColor: Colors.lavenderUltra, alignItems: 'center', justifyContent: 'center' },
   dateDay: { fontSize: 22, fontWeight: '900', color: Colors.accentMagenta, lineHeight: 24 },
   dateMonth: { fontSize: 10, fontWeight: '800', color: Colors.accentOrange, marginTop: 2 },
   cardBody: { flex: 1 },
@@ -400,76 +412,28 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 10, fontWeight: '800' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' },
   metaText: { fontSize: 12, color: Colors.textSoft },
+  confirmationInfoBadge: { marginTop: 4, marginBottom: 4, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  confirmationInfoText: { fontSize: 11, fontWeight: '800' },
+  deadlineText: { fontSize: 11, color: Colors.textSoft, marginBottom: 4 },
   notesBox: { marginTop: 6, backgroundColor: Colors.lavenderUltra, borderRadius: 12, padding: 10 },
   notesText: { fontSize: 12, lineHeight: 18, color: Colors.textBody },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
-  confirmBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.accentMagenta,
-    borderRadius: 12,
-    paddingVertical: 12,
-  },
+  confirmBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.accentMagenta, borderRadius: 12, paddingVertical: 12 },
   confirmBtnDisabled: { opacity: 0.6 },
   confirmBtnText: { fontSize: 13, fontWeight: '800', color: Colors.white },
-  rescheduleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.lavenderUltra,
-    borderRadius: 12,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderSoft,
-  },
+  rescheduleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.lavenderUltra, borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: Colors.borderSoft },
   rescheduleBtnText: { fontSize: 13, fontWeight: '800', color: Colors.accentOrange },
   sectionGap: { marginTop: 12 },
-  confirmationCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: 18,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderSoft,
-  },
+  confirmationCard: { backgroundColor: Colors.bgCard, borderRadius: 18, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: Colors.borderSoft },
   confirmationTop: { flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: 10 },
-  confirmationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.lavenderUltra,
-  },
+  confirmationIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.lavenderUltra },
   confirmationTitle: { fontSize: 15, fontWeight: '800', color: Colors.textDark },
   confirmationMeta: { fontSize: 12, color: Colors.textSoft, marginTop: 2 },
   confirmationText: { fontSize: 13, lineHeight: 19, color: Colors.textBody, marginBottom: 12 },
   confirmationActions: { gap: 10 },
-  followupBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.lavenderUltra,
-    borderRadius: 12,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: Colors.borderSoft,
-  },
+  followupBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.lavenderUltra, borderRadius: 12, paddingVertical: 12, borderWidth: 1, borderColor: Colors.borderSoft },
   followupBtnText: { fontSize: 13, fontWeight: '800', color: Colors.primary },
-  historyCard: {
-    backgroundColor: Colors.bgCard,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.borderSoft,
-  },
+  historyCard: { backgroundColor: Colors.bgCard, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: Colors.borderSoft },
   historyTitle: { fontSize: 14, fontWeight: '800', color: Colors.textDark },
   historyMeta: { fontSize: 12, color: Colors.textSoft, marginTop: 4 },
 });

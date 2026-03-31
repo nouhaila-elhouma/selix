@@ -204,7 +204,7 @@ export const Appointments = {
 
 export const InterestConfirmations = {
   list: () => api.get<unknown[]>('/interest-confirmations'),
-  create: (body: { leadId: string; appointmentId?: string; requestMessage?: string }) =>
+  create: (body: { leadId?: string; appointmentId?: string; requestMessage?: string }) =>
     api.post<unknown>('/interest-confirmations', body),
   respond: (id: string, body: { status: 'confirmed' | 'declined' | 'needs_followup'; responseNote?: string }) =>
     api.patch<unknown>(`/interest-confirmations/${id}/respond`, body),
@@ -220,6 +220,13 @@ export const Conversations = {
   create:   (body: unknown)      => api.post<unknown>('/conversations', body),
   send:     (id: string, content: string, messageType: 'text' | 'image' | 'document' = 'text') =>
     api.post<unknown>(`/conversations/${id}/messages`, { content, messageType }),
+};
+
+export const Calls = {
+  history: () => api.get<unknown[]>('/calls/history'),
+  start: (conversationId: string) => api.post<unknown>('/calls/start', { conversationId }),
+  respond: (id: string, action: 'accept' | 'reject') => api.patch<unknown>(`/calls/${id}/respond`, { action }),
+  end: (id: string) => api.patch<unknown>(`/calls/${id}/end`, {}),
 };
 
 export const Notifications = {

@@ -52,6 +52,22 @@ function formatTimelineDate(value: string) {
   return `${date.toLocaleDateString('fr-FR')} a ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
 }
 
+function displayValue(value?: string | number | null, fallback = '-') {
+  if (value == null) return fallback;
+  const normalized = String(value).trim();
+  return normalized ? normalized : fallback;
+}
+
+function yesNoValue(value?: boolean) {
+  if (value === true) return 'Oui';
+  if (value === false) return 'Non';
+  return '-';
+}
+
+function listValue(items?: string[]) {
+  return items && items.length ? items.join(', ') : '-';
+}
+
 export function ProfileScreen() {
   const {
     currentUser,
@@ -361,22 +377,102 @@ export function ProfileScreen() {
               <Text style={styles.projectItemLabel}>Validation compte</Text>
               <Text style={styles.validationValue}>{currentUser?.accountValidationStatus === 'validated' ? 'Validé' : currentUser?.accountValidationStatus === 'rejected' ? 'À revoir' : currentUser?.accountValidationStatus === 'pending_review' ? 'En attente' : 'Brouillon'}</Text>
             </View>
-            <View style={styles.projectGrid}>
+              <View style={styles.projectGrid}>
               <View style={styles.projectItem}>
                 <Text style={styles.projectItemLabel}>Type</Text>
-                <Text style={styles.projectItemValue}>{myLead.answers.propertyType || '-'}</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.propertyType)}</Text>
               </View>
               <View style={styles.projectItem}>
                 <Text style={styles.projectItemLabel}>Objectif</Text>
-                <Text style={styles.projectItemValue}>{myLead.answers.objective || '-'}</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.objective || myLead.answers.clientGoal)}</Text>
               </View>
               <View style={styles.projectItem}>
-                <Text style={styles.projectItemLabel}>Budget</Text>
-                <Text style={styles.projectItemValue}>{myLead.answers.budget || '-'}</Text>
+                <Text style={styles.projectItemLabel}>Budget max</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.budget)}</Text>
               </View>
               <View style={styles.projectItem}>
                 <Text style={styles.projectItemLabel}>Zone</Text>
-                <Text style={styles.projectItemValue} numberOfLines={1}>{myLead.answers.targetZone || '-'}</Text>
+                <Text style={styles.projectItemValue} numberOfLines={1}>{displayValue(myLead.answers.targetZone)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Ville ciblee</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.city || myLead.answers.searchedCity)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Budget min</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.budgetMin)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Financement</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.financing)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Delai</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.purchaseDeadline)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Etat recherche</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.projectStage)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Marche</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.purchaseStage)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Contexte d achat</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.ownershipContext)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Contact prefere</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.contactPreference)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Langue</Text>
+                <Text style={styles.projectItemValue}>{displayValue(myLead.answers.preferredLanguage)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Surface ideale</Text>
+                <Text style={styles.projectItemValue}>{myLead.answers.desiredAreaRaw ? `${myLead.answers.desiredAreaRaw} m2` : '-'}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Surface min</Text>
+                <Text style={styles.projectItemValue}>{myLead.answers.desiredAreaMinRaw ? `${myLead.answers.desiredAreaMinRaw} m2` : '-'}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Pieces</Text>
+                <Text style={styles.projectItemValue}>{myLead.answers.rooms ? `${myLead.answers.rooms}` : '-'}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Salles de bain</Text>
+                <Text style={styles.projectItemValue}>{myLead.answers.bathrooms ? `${myLead.answers.bathrooms}` : '-'}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Parking requis</Text>
+                <Text style={styles.projectItemValue}>{yesNoValue(myLead.answers.parkingRequired)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Terrasse requise</Text>
+                <Text style={styles.projectItemValue}>{yesNoValue(myLead.answers.terraceRequired)}</Text>
+              </View>
+              <View style={styles.projectItemWide}>
+                <Text style={styles.projectItemLabel}>Criteres indispensables</Text>
+                <Text style={styles.projectItemValue}>{listValue(myLead.answers.mustHave)}</Text>
+              </View>
+              <View style={styles.projectItemWide}>
+                <Text style={styles.projectItemLabel}>Criteres souhaites</Text>
+                <Text style={styles.projectItemValue}>{listValue(myLead.answers.optionalCriteria)}</Text>
+              </View>
+              <View style={styles.projectItemWide}>
+                <Text style={styles.projectItemLabel}>Zones exclues</Text>
+                <Text style={styles.projectItemValue}>{listValue(myLead.answers.excludedZones)}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Urgence</Text>
+                <Text style={styles.projectItemValue}>{myLead.answers.urgencyLevel ? `${myLead.answers.urgencyLevel}/100` : '-'}</Text>
+              </View>
+              <View style={styles.projectItem}>
+                <Text style={styles.projectItemLabel}>Compatibilite</Text>
+                <Text style={styles.projectItemValue}>{myLead.answers.compatibilityScore ? `${myLead.answers.compatibilityScore}/100` : '-'}</Text>
               </View>
               <View style={styles.projectItem}>
                 <Text style={styles.projectItemLabel}>Confirmation d interet</Text>
@@ -644,6 +740,7 @@ const styles = StyleSheet.create({
   validationValue: { fontSize: 12, fontWeight: '800', color: Colors.primary },
   projectGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   projectItem: { width: '50%', paddingVertical: 6 },
+  projectItemWide: { width: '100%', paddingVertical: 6 },
   projectItemLabel: { fontSize: 11, color: Colors.textMuted, fontWeight: '500', marginBottom: 2 },
   projectItemValue: { fontSize: 13, fontWeight: '700', color: Colors.textDark },
   editProjectBtn: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: Colors.lavenderUltra, borderRadius: 12, paddingVertical: 12 },

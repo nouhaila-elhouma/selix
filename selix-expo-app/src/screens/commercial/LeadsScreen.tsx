@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Alert, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,6 +62,22 @@ function validationButtonColors(status: 'validated' | 'pending_review' | 'reject
 
 function leadOriginLabel(lead: Lead) {
   return lead.source === 'matching' ? 'Matching client' : 'Questionnaire';
+}
+
+function displayValue(value?: string | number | null, fallback = '-') {
+  if (value == null) return fallback;
+  const normalized = String(value).trim();
+  return normalized ? normalized : fallback;
+}
+
+function yesNoValue(value?: boolean) {
+  if (value === true) return 'Oui';
+  if (value === false) return 'Non';
+  return '-';
+}
+
+function listValue(items?: string[]) {
+  return items && items.length ? items.join(', ') : '-';
 }
 
 function isProperty(item: Property | string): item is Property {
@@ -273,23 +289,6 @@ export function LeadsScreen() {
     }
   };
 
-  const handleCallClient = async (lead: Lead) => {
-    const phone = String(lead.clientPhone || '').trim();
-    if (!phone) {
-      Alert.alert('Contact', 'Aucun numero client disponible.');
-      return;
-    }
-
-    const url = `tel:${phone}`;
-    const supported = await Linking.canOpenURL(url);
-    if (!supported) {
-      Alert.alert('Contact', 'Cet appareil ne peut pas lancer un appel.');
-      return;
-    }
-
-    await Linking.openURL(url);
-  };
-
   const handleOpenConversation = async (lead: Lead) => {
     if (!lead.clientId || !currentUser?.id) {
       Alert.alert('Messages', 'Impossible d ouvrir la conversation pour ce lead.');
@@ -393,10 +392,10 @@ export function LeadsScreen() {
               )}
 
               <Text style={styles.leadMeta}>
-                {lead.answers.propertyType} - {lead.answers.objective} - {lead.answers.budget}
+                {displayValue(lead.answers.propertyType)} - {displayValue(lead.answers.objective)} - {displayValue(lead.answers.budget)}
               </Text>
               <Text style={styles.leadZone} numberOfLines={1}>
-                <Ionicons name="location-outline" size={11} color={Colors.textMuted} /> {lead.answers.targetZone || lead.answers.city}
+                <Ionicons name="location-outline" size={11} color={Colors.textMuted} /> {displayValue(lead.answers.targetZone || lead.answers.city)}
               </Text>
             </View>
 
@@ -434,19 +433,20 @@ export function LeadsScreen() {
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('leads.contact')}</Text>
-                <InfoRow icon="call-outline" label="Telephone" value={selected.clientPhone} />
-                <InfoRow icon="mail-outline" label="Email" value={selected.clientEmail} />
-                <InfoRow icon="location-outline" label="Ville" value={selected.answers.city} />
+                <InfoRow icon="call-outline" label="Telephone" value={displayValue(selected.clientPhone)} />
+                <InfoRow icon="mail-outline" label="Email" value={displayValue(selected.clientEmail)} />
+                <InfoRow icon="location-outline" label="Ville ciblee" value={displayValue(selected.answers.city || selected.answers.searchedCity)} />
+                <InfoRow icon="compass-outline" label="Zone ciblee" value={displayValue(selected.answers.targetZone)} />
+                <InfoRow icon="home-outline" label="Ville actuelle" value={displayValue(selected.answers.currentCity)} />
+                <InfoRow icon="chatbubble-ellipses-outline" label="Contact prefere" value={displayValue(selected.answers.contactPreference)} />
+                <InfoRow icon="language-outline" label="Langue" value={displayValue(selected.answers.preferredLanguage)} />
+                <InfoRow icon="airplane-outline" label="MRE" value={selected.answers.isMRE ? `Oui${selected.answers.country ? ` (${selected.answers.country})` : ''}` : 'Non'} />
                 <InfoRow
                   icon="shield-checkmark-outline"
                   label="Validation"
                   value={selected.accountValidationStatus === 'validated' ? 'Validé' : selected.accountValidationStatus === 'rejected' ? 'À revoir' : selected.accountValidationStatus === 'pending_review' ? 'En attente' : 'Brouillon'}
                 />
                 <View style={styles.contactActions}>
-                  <TouchableOpacity style={styles.contactBtn} onPress={() => handleCallClient(selected)}>
-                    <Ionicons name="call-outline" size={16} color={Colors.primary} />
-                    <Text style={styles.contactBtnText}>Appeler</Text>
-                  </TouchableOpacity>
                   <TouchableOpacity style={styles.contactBtn} onPress={() => handleOpenConversation(selected)}>
                     <Ionicons name="chatbubble-outline" size={16} color={Colors.primary} />
                     <Text style={styles.contactBtnText}>Ouvrir le chat</Text>
@@ -500,14 +500,23 @@ export function LeadsScreen() {
                   );
                 })()}
                 <InfoRow icon="sparkles-outline" label="Origine" value={leadOriginLabel(selected)} />
-                <InfoRow icon="home-outline" label="Type" value={selected.answers.propertyType || '-'} />
-                <InfoRow icon="flag-outline" label="Objectif" value={selected.answers.objective || '-'} />
-                <InfoRow icon="map-outline" label="Zone" value={selected.answers.targetZone || '-'} />
-                <InfoRow icon="cash-outline" label="Budget" value={selected.answers.budget || '-'} />
-                <InfoRow icon="card-outline" label="Financement" value={selected.answers.financing || '-'} />
-                <InfoRow icon="time-outline" label="Delai" value={selected.answers.purchaseDeadline || '-'} />
-                <InfoRow icon="resize-outline" label="Surface" value={`${selected.answers.desiredAreaRaw || 0} m2`} />
-                <InfoRow icon="bed-outline" label="Pieces" value={`${selected.answers.rooms} piece(s)`} />
+                <InfoRow icon="home-outline" label="Type" value={displayValue(selected.answers.propertyType)} />
+                <InfoRow icon="flag-outline" label="Objectif" value={displayValue(selected.answers.objective || selected.answers.clientGoal)} />
+                <InfoRow icon="git-compare-outline" label="Marche" value={displayValue(selected.answers.purchaseStage)} />
+                <InfoRow icon="construct-outline" label="Etat recherche" value={displayValue(selected.answers.projectStage)} />
+                <InfoRow icon="people-outline" label="Contexte d achat" value={displayValue(selected.answers.ownershipContext)} />
+                <InfoRow icon="map-outline" label="Zone" value={displayValue(selected.answers.targetZone)} />
+                <InfoRow icon="cash-outline" label="Budget max" value={displayValue(selected.answers.budget)} />
+                <InfoRow icon="wallet-outline" label="Budget min" value={displayValue(selected.answers.budgetMin)} />
+                <InfoRow icon="card-outline" label="Financement" value={displayValue(selected.answers.financing)} />
+                <InfoRow icon="time-outline" label="Delai" value={displayValue(selected.answers.purchaseDeadline)} />
+                <InfoRow icon="resize-outline" label="Surface ideale" value={selected.answers.desiredAreaRaw ? `${selected.answers.desiredAreaRaw} m2` : '-'} />
+                <InfoRow icon="scan-outline" label="Surface min" value={selected.answers.desiredAreaMinRaw ? `${selected.answers.desiredAreaMinRaw} m2` : '-'} />
+                <InfoRow icon="bed-outline" label="Pieces" value={selected.answers.rooms ? `${selected.answers.rooms} piece(s)` : '-'} />
+                <InfoRow icon="water-outline" label="Salles de bain" value={selected.answers.bathrooms ? `${selected.answers.bathrooms}` : '-'} />
+                <InfoRow icon="car-outline" label="Parking requis" value={yesNoValue(selected.answers.parkingRequired)} />
+                <InfoRow icon="sunny-outline" label="Terrasse requise" value={yesNoValue(selected.answers.terraceRequired)} />
+                <InfoRow icon="ban-outline" label="Zones exclues" value={listValue(selected.answers.excludedZones)} />
               </View>
 
               {selected.notes ? (
@@ -563,6 +572,27 @@ export function LeadsScreen() {
                   </View>
                 </View>
               )}
+
+              {!!selected.answers.optionalCriteria?.length && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Criteres souhaites</Text>
+                  <View style={styles.tagsRow}>
+                    {(selected.answers.optionalCriteria || []).map((item) => (
+                      <View key={item} style={styles.tag}>
+                        <Text style={styles.tagText}>{item}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Qualification</Text>
+                <InfoRow icon="speedometer-outline" label="Urgence" value={selected.answers.urgencyLevel ? `${selected.answers.urgencyLevel}/100` : '-'} />
+                <InfoRow icon="checkmark-circle-outline" label="Serieux projet" value={selected.answers.projectSeriousness ? `${selected.answers.projectSeriousness}/100` : '-'} />
+                <InfoRow icon="cash-outline" label="Maturite financement" value={selected.answers.financingReadiness ? `${selected.answers.financingReadiness}/100` : '-'} />
+                <InfoRow icon="sparkles-outline" label="Compatibilite" value={selected.answers.compatibilityScore ? `${selected.answers.compatibilityScore}/100` : '-'} />
+              </View>
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Historique</Text>

@@ -19,17 +19,12 @@ const FEATURES = [
   {
     icon: 'sparkles-outline',
     title: 'Qualification express',
-    text: 'Une serie de questions fluides pour comprendre votre projet en moins d une minute.',
+    text: 'Quelques questions fluides pour cadrer votre projet rapidement.',
   },
   {
     icon: 'heart-circle-outline',
     title: 'Matching intelligent',
-    text: 'Selix croise vos besoins, votre budget et le marche pour remonter les projets les plus pertinents.',
-  },
-  {
-    icon: 'paper-plane-outline',
-    title: 'Connexion immediate',
-    text: 'Des qu un projet vous plait, vous passez directement au bon commercial pour avancer vite.',
+    text: 'Selix croise votre besoin, votre budget et le marche pour proposer les bons projets.',
   },
 ];
 
@@ -74,9 +69,9 @@ export function WelcomeScreen() {
             <Text style={styles.badgeText}>AI Real Estate Matching</Text>
           </View>
 
-          <Text style={styles.heroTitle}>Trouvez plus vite le bon bien, avec le bon agent.</Text>
+          <Text style={styles.heroTitle}>Trouvez plus vite le bon bien.</Text>
           <Text style={styles.heroSubtitle}>
-            Qualification en 60 secondes, matching intelligent selon vos besoins, puis mise en relation directe avec le conseiller le plus pertinent.
+            Qualification rapide, matching intelligent, puis mise en relation avec le bon conseiller.
           </Text>
 
           <View style={styles.highlightRow}>
@@ -125,14 +120,14 @@ export function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgMain },
-  hero: { height: H * 0.67, position: 'relative', overflow: 'hidden' },
+  hero: { height: H * 0.58, position: 'relative', overflow: 'hidden' },
   heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   heroOverlay: { position: 'absolute', inset: 0 },
   heroShade: { position: 'absolute', inset: 0 },
   orb: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)' },
-  orbA: { width: 260, height: 260, top: -70, right: -90 },
-  orbB: { width: 180, height: 180, bottom: 56, left: -52, backgroundColor: 'rgba(255,138,30,0.1)' },
-  heroContent: { position: 'absolute', left: 24, right: 24, bottom: 30 },
+  orbA: { width: 220, height: 220, top: -74, right: -96 },
+  orbB: { width: 150, height: 150, bottom: 48, left: -52, backgroundColor: 'rgba(255,138,30,0.1)' },
+  heroContent: { position: 'absolute', left: 22, right: 22, bottom: 22 },
   badge: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -141,44 +136,44 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    marginTop: 14,
-    marginBottom: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 10,
+    marginBottom: 12,
   },
   badgeText: { color: Colors.white, fontSize: 11, fontWeight: '800', marginLeft: 6, letterSpacing: 0.5 },
-  heroTitle: { fontSize: 36, fontWeight: '900', color: Colors.white, lineHeight: 40, letterSpacing: -1.1, maxWidth: 340 },
-  heroSubtitle: { fontSize: 15, color: 'rgba(255,255,255,0.82)', lineHeight: 24, marginTop: 14, maxWidth: 340 },
-  highlightRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 18 },
+  heroTitle: { fontSize: 30, fontWeight: '900', color: Colors.white, lineHeight: 33, letterSpacing: -0.9, maxWidth: 320 },
+  heroSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.82)', lineHeight: 21, marginTop: 10, maxWidth: 320 },
+  highlightRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   highlightPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
   },
-  highlightText: { color: Colors.white, fontSize: 12, fontWeight: '800' },
-  ctaStack: { gap: 12, marginTop: 22 },
+  highlightText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
+  ctaStack: { gap: 10, marginTop: 16 },
   primaryButton: { borderRadius: 22, overflow: 'hidden' },
   primaryButtonInner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 18,
+    paddingVertical: 15,
     shadowColor: '#EA4C89',
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.28,
     shadowRadius: 22,
     elevation: 10,
   },
-  primaryButtonText: { color: Colors.white, fontSize: 16, fontWeight: '900' },
+  primaryButtonText: { color: Colors.white, fontSize: 15, fontWeight: '900' },
   secondaryButton: {
-    height: 54,
+    height: 48,
     borderRadius: 22,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
@@ -186,18 +181,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  secondaryButtonText: { color: Colors.white, fontSize: 15, fontWeight: '800' },
-  panel: { flex: 1, marginTop: -24, paddingHorizontal: 20, paddingBottom: 28 },
+  secondaryButtonText: { color: Colors.white, fontSize: 14, fontWeight: '800' },
+  panel: { flex: 1, marginTop: -18, paddingHorizontal: 20, paddingBottom: 20 },
   panelCard: {
     borderRadius: 30,
-    padding: 22,
+    padding: 18,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
-  panelEyebrow: { color: Colors.accentOrange, fontSize: 12, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1.1, marginBottom: 8 },
-  featureRow: { flexDirection: 'row', gap: 14, paddingVertical: 12 },
-  featureIcon: { width: 46, height: 46, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  panelEyebrow: { color: Colors.accentOrange, fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1.1, marginBottom: 4 },
+  featureRow: { flexDirection: 'row', gap: 12, paddingVertical: 10 },
+  featureIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   featureBody: { flex: 1 },
-  featureTitle: { color: Colors.textDark, fontSize: 16, fontWeight: '900', marginBottom: 4 },
-  featureText: { color: Colors.textSoft, fontSize: 13, lineHeight: 21 },
+  featureTitle: { color: Colors.textDark, fontSize: 15, fontWeight: '900', marginBottom: 2 },
+  featureText: { color: Colors.textSoft, fontSize: 12, lineHeight: 18 },
 });

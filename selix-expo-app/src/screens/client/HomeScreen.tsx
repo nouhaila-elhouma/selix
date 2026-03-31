@@ -6,7 +6,7 @@ import { Colors } from '../../constants/colors';
 import { useApp } from '../../context/AppContext';
 import { Appointments, SupportRequests } from '../../lib/api';
 import { Appointment } from '../../types';
-import { Divider, GradientCard, SectionHeader } from '../../components/ui';
+import { Divider, SectionHeader } from '../../components/ui';
 import { getScoreColor, getScoreLabel, getTemperatureBgColor, getTemperatureColor, getTemperatureLabel } from '../../utils/scoring';
 
 function uniqueById<T extends { id: string }>(items: T[]) {
@@ -45,7 +45,6 @@ export function HomeScreen() {
 
   const myLead = leads.find((lead) => lead.clientEmail === currentUser?.email) || leads[0];
   const actualMatches = matchedProperties.filter((property) => !!property?.id && property.score > 0);
-  const heroMatch = actualMatches[0];
   const upcomingVisits = appointments.filter((item) => item.status === 'Planifié' || item.status === 'Confirmé').length;
   const stageIndex = myLead ? PIPELINE_STAGES.indexOf(myLead.status as any) : 0;
   const scoreColor = myLead ? getScoreColor(myLead.score) : Colors.textMuted;
@@ -216,31 +215,6 @@ export function HomeScreen() {
           </View>
         ) : null}
 
-        {heroMatch ? (
-          <View style={styles.sectionBlock}>
-            <SectionHeader title={t('home.mainMatch')} action={t('common.open')} onAction={() => setClientActiveTab('Match')} />
-            <TouchableOpacity style={styles.heroMatchCard} activeOpacity={0.85} onPress={() => setClientActiveTab('Match')}>
-              <View style={styles.heroMatchTop}>
-                <Text style={styles.heroMatchBadge}>{heroMatch.badge}</Text>
-                <Text style={styles.heroMatchScore}>{heroMatch.score}/100</Text>
-              </View>
-              <Text style={styles.heroMatchTitle} numberOfLines={1}>{heroMatch.title}</Text>
-              <Text style={styles.heroMatchMeta} numberOfLines={1}>{heroMatch.district}, {heroMatch.city}</Text>
-              <Text style={styles.heroMatchMeta} numberOfLines={1}>{heroMatch.price} - {heroMatch.area} - {heroMatch.rooms} pieces</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <GradientCard style={styles.noMatchCard}>
-            <View style={styles.noMatchContent}>
-              <View style={styles.noMatchIcon}>
-                <Ionicons name="sparkles-outline" size={24} color={Colors.white} />
-              </View>
-              <Text style={styles.noMatchTitle}>{t('home.completeProfile')}</Text>
-              <Text style={styles.noMatchSub}>{t('home.completeProfileSub')}</Text>
-            </View>
-          </GradientCard>
-        )}
-
         <View style={styles.sectionBlock}>
           <SectionHeader title={t('home.yourSpace')} />
           <View style={styles.featuresGrid}>
@@ -324,17 +298,6 @@ const styles = StyleSheet.create({
   pipelineLabelDone: { color: Colors.success, fontWeight: '600' },
   pipelineLine: { flex: 1, height: 2, backgroundColor: Colors.borderSoft, marginBottom: 14 },
   pipelineLineDone: { backgroundColor: Colors.success },
-  heroMatchCard: { backgroundColor: Colors.bgCard, borderRadius: 18, padding: 10, borderWidth: 1, borderColor: Colors.borderSoft },
-  heroMatchTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  heroMatchBadge: { fontSize: 11, fontWeight: '800', color: Colors.primary, backgroundColor: Colors.lavenderUltra, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
-  heroMatchScore: { fontSize: 12, fontWeight: '800', color: Colors.textDark },
-  heroMatchTitle: { fontSize: 14, fontWeight: '800', color: Colors.textDark, marginBottom: 4 },
-  heroMatchMeta: { fontSize: 11, color: Colors.textSoft, marginBottom: 2 },
-  noMatchCard: { padding: 10, marginBottom: 4 },
-  noMatchContent: { alignItems: 'center', gap: 5 },
-  noMatchIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  noMatchTitle: { fontSize: 13, fontWeight: '800', color: Colors.white },
-  noMatchSub: { fontSize: 10, color: 'rgba(255,255,255,0.82)', textAlign: 'center', lineHeight: 13 },
   featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   featureCard: { width: '100%', minHeight: 72, backgroundColor: Colors.bgCard, borderRadius: 16, padding: 8, borderWidth: 1, borderColor: Colors.borderSoft, alignItems: 'center', justifyContent: 'center', gap: 4 },
   featureIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

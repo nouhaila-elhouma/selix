@@ -4,8 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Colors } from '../../constants/colors';
-import { Appointments } from '../../lib/api';
-import { Appointment } from '../../types';
+import { Appointments, InterestConfirmations } from '../../lib/api';
+import { Appointment, InterestConfirmation } from '../../types';
 import { SectionHeader, EmptyState } from '../../components/ui';
 import { useApp } from '../../context/AppContext';
 
@@ -19,10 +19,15 @@ function uniqueById<T extends { id: string }>(items: T[]) {
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  Planifié: { bg: Colors.warningLight, text: Colors.warning },
-  Confirmé: { bg: Colors.successLight, text: Colors.success },
-  Effectué: { bg: Colors.infoLight, text: Colors.info },
-  Annulé: { bg: Colors.dangerLight, text: Colors.danger },
+  'Planifié': { bg: Colors.warningLight, text: Colors.warning },
+  'Confirmé': { bg: Colors.successLight, text: Colors.success },
+  'Effectué': { bg: Colors.infoLight, text: Colors.info },
+  'Annulé': { bg: Colors.dangerLight, text: Colors.danger },
+  'Report demande': { bg: Colors.warningLight, text: Colors.accentOrange },
+  Planifie: { bg: Colors.warningLight, text: Colors.warning },
+  Confirme: { bg: Colors.successLight, text: Colors.success },
+  Effectue: { bg: Colors.infoLight, text: Colors.info },
+  Annule: { bg: Colors.dangerLight, text: Colors.danger },
 };
 
 function normalizeStatus(status = '') {
@@ -40,27 +45,37 @@ function formatVisitTime(value: Date) {
 export function VisitsScreen() {
   const { realtimeVersion } = useApp();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [interestConfirmations, setInterestConfirmations] = useState<InterestConfirmation[]>([]);
   const [editingVisit, setEditingVisit] = useState<Appointment | null>(null);
   const [visitDateTime, setVisitDateTime] = useState(new Date());
   const [submitting, setSubmitting] = useState(false);
+  const [completingVisitId, setCompletingVisitId] = useState<string | null>(null);
+  const [sendingInterestVisitId, setSendingInterestVisitId] = useState<string | null>(null);
   const [pickerMode, setPickerMode] = useState<'date' | 'time' | null>(null);
 
   const loadAppointments = () => {
-    Appointments.list()
-      .then((items) => setAppointments(uniqueById(items as Appointment[])))
-      .catch(() => setAppointments([]));
+    Promise.all([Appointments.list(), InterestConfirmations.list()])
+      .then(([appointmentItems, confirmationItems]) => {
+        setAppointments(uniqueById(appointmentItems as Appointment[]));
+        setInterestConfirmations(uniqueById(confirmationItems as InterestConfirmation[]));
+      })
+      .catch(() => {
+        setAppointments([]);
+        setInterestConfirmations([]);
+      });
   };
 
   useEffect(() => {
     loadAppointments();
   }, [realtimeVersion]);
 
-  const upcoming = appointments.filter((a) => {
-    const normalized = normalizeStatus(a.status);
-    return normalized === 'Planifie' || normalized === 'Confirme';
+  const upcoming = appointments.filter((appointment) => {
+    const normalized = normalizeStatus(appointment.status);
+    return normalized === 'Planifie' || normalized === 'Confirme' || normalized === 'Report demande';
   });
-  const past = appointments.filter((a) => {
-    const normalized = normalizeStatus(a.status);
+
+  const past = appointments.filter((appointment) => {
+    const normalized = normalizeStatus(appointment.status);
     return normalized === 'Effectue' || normalized === 'Annule';
   });
 
@@ -104,36 +119,109 @@ export function VisitsScreen() {
     }
   };
 
-  const renderVisit = (a: Appointment) => {
-    const sc = STATUS_COLORS[a.status] || { bg: Colors.bgSoft, text: Colors.textSoft };
-    const d = new Date(a.date);
-    const canEdit = normalizeStatus(a.status) !== 'Effectue' && normalizeStatus(a.status) !== 'Annule';
+  const renderVisit = (appointment: Appointment) => {
+    const statusColors = STATUS_COLORS[appointment.status] || { bg: Colors.bgSoft, text: Colors.textSoft };
+    const date = new Date(appointment.date);
+    const normalized = normalizeStatus(appointment.status);
+    const existingConfirmation = interestConfirmations.find((item) => item.appointmentId === appointment.id)
+      || interestConfirmations.find((item) => item.leadId && appointment.leadId && item.leadId === appointment.leadId);
+    const canEdit = normalized !== 'Effectue' && normalized !== 'Annule';
+    const canComplete = normalized === 'Confirme';
+    const canSendInterest = normalized === 'Effectue' && !existingConfirmation;
+    const confirmationLabel = existingConfirmation
+      ? existingConfirmation.status === 'pending'
+        ? 'Confirmation envoyee'
+        : existingConfirmation.status === 'confirmed'
+          ? 'Interet confirme'
+          : existingConfirmation.status === 'declined'
+            ? 'Interet refuse'
+            : existingConfirmation.status === 'expired'
+              ? 'Confirmation expiree'
+              : 'Suivi demande'
+      : '';
 
     return (
-      <View key={a.id} style={styles.visitCard}>
+      <View key={appointment.id} style={styles.visitCard}>
         <View style={styles.dateBox}>
-          <Text style={styles.dateDay}>{String(d.getDate()).padStart(2, '0')}</Text>
-          <Text style={styles.dateMonth}>{d.toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase()}</Text>
+          <Text style={styles.dateDay}>{String(date.getDate()).padStart(2, '0')}</Text>
+          <Text style={styles.dateMonth}>{date.toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase()}</Text>
         </View>
+
         <View style={{ flex: 1 }}>
-          <Text style={styles.visitTitle} numberOfLines={1}>{a.propertyTitle}</Text>
-          <Text style={styles.visitClient}>{a.clientName}</Text>
+          <Text style={styles.visitTitle} numberOfLines={1}>{appointment.propertyTitle}</Text>
+          <Text style={styles.visitClient}>{appointment.clientName}</Text>
           <View style={styles.visitMeta}>
             <Ionicons name="time-outline" size={11} color={Colors.textSoft} />
-            <Text style={styles.visitMetaText}>{a.time}</Text>
+            <Text style={styles.visitMetaText}>{appointment.time}</Text>
             <Ionicons name="location-outline" size={11} color={Colors.textSoft} />
-            <Text style={styles.visitMetaText}>{a.city}</Text>
+            <Text style={styles.visitMetaText}>{appointment.city}</Text>
           </View>
-          {a.notes ? <Text style={styles.visitNotes} numberOfLines={2}>{a.notes}</Text> : null}
-          {canEdit ? (
-            <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(a)}>
-              <Ionicons name="create-outline" size={14} color={Colors.primary} />
-              <Text style={styles.editBtnText}>Modifier</Text>
-            </TouchableOpacity>
+          {confirmationLabel ? (
+            <View style={styles.confirmationInfoBadge}>
+              <Ionicons name="sparkles-outline" size={13} color={Colors.primary} />
+              <Text style={styles.confirmationInfoText}>{confirmationLabel}</Text>
+            </View>
+          ) : null}
+          {appointment.notes ? <Text style={styles.visitNotes} numberOfLines={2}>{appointment.notes}</Text> : null}
+          {(canEdit || canComplete || canSendInterest) ? (
+            <View style={styles.inlineActions}>
+              {canEdit ? (
+                <TouchableOpacity style={styles.editBtn} onPress={() => openEditModal(appointment)}>
+                  <Ionicons name="create-outline" size={14} color={Colors.primary} />
+                  <Text style={styles.editBtnText}>Modifier</Text>
+                </TouchableOpacity>
+              ) : null}
+              {canComplete ? (
+                <TouchableOpacity
+                  style={[styles.completeBtn, completingVisitId === appointment.id && styles.disabledBtn]}
+                  disabled={completingVisitId === appointment.id}
+                  onPress={async () => {
+                    try {
+                      setCompletingVisitId(appointment.id);
+                      await Appointments.updateStatus(appointment.id, 'Effectué');
+                      loadAppointments();
+                      Alert.alert('Visite', 'La visite est maintenant marquee comme effectuee.');
+                    } catch (error: any) {
+                      Alert.alert('Visite', error?.message || 'Impossible de marquer cette visite comme effectuee.');
+                    } finally {
+                      setCompletingVisitId(null);
+                    }
+                  }}
+                >
+                  <Ionicons name="checkmark-done-outline" size={14} color={Colors.white} />
+                  <Text style={styles.completeBtnText}>{completingVisitId === appointment.id ? 'Validation...' : 'Marquer effectuee'}</Text>
+                </TouchableOpacity>
+              ) : null}
+              {canSendInterest ? (
+                <TouchableOpacity
+                  style={[styles.interestBtn, sendingInterestVisitId === appointment.id && styles.disabledBtn]}
+                  disabled={sendingInterestVisitId === appointment.id}
+                  onPress={async () => {
+                    try {
+                      setSendingInterestVisitId(appointment.id);
+                      await InterestConfirmations.create({
+                        appointmentId: appointment.id,
+                        requestMessage: `Suite a votre visite de ${appointment.propertyTitle}, merci de confirmer si vous souhaitez avancer sur ce projet.`,
+                      });
+                      loadAppointments();
+                      Alert.alert('Confirmation', 'La demande de confirmation d interet a ete envoyee au client.');
+                    } catch (error: any) {
+                      Alert.alert('Confirmation', error?.message || 'Impossible d envoyer cette demande de confirmation.');
+                    } finally {
+                      setSendingInterestVisitId(null);
+                    }
+                  }}
+                >
+                  <Ionicons name="sparkles-outline" size={14} color={Colors.white} />
+                  <Text style={styles.interestBtnText}>{sendingInterestVisitId === appointment.id ? 'Envoi...' : 'Demander confirmation'}</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
           ) : null}
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-          <Text style={[styles.statusText, { color: sc.text }]}>{a.status}</Text>
+
+        <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
+          <Text style={[styles.statusText, { color: statusColors.text }]}>{appointment.status}</Text>
         </View>
       </View>
     );
@@ -143,19 +231,19 @@ export function VisitsScreen() {
     <View style={styles.container}>
       <LinearGradient colors={Colors.gradientPrimary} style={styles.header}>
         <Text style={styles.headerTitle}>Visites</Text>
-        <Text style={styles.headerSub}>{upcoming.length} à venir · {past.length} passée{past.length !== 1 ? 's' : ''}</Text>
+        <Text style={styles.headerSub}>{upcoming.length} a venir · {past.length} passee{past.length !== 1 ? 's' : ''}</Text>
       </LinearGradient>
 
       <ScrollView style={styles.scroll} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-        <SectionHeader title="À venir" />
+        <SectionHeader title="A venir" />
         {upcoming.length === 0
-          ? <EmptyState icon="calendar-outline" title="Aucune visite planifiée" subtitle="Les visites confirmées apparaîtront ici." />
+          ? <EmptyState icon="calendar-outline" title="Aucune visite planifiee" subtitle="Les visites confirmees apparaitront ici." />
           : upcoming.map(renderVisit)}
 
         {past.length > 0 ? (
           <>
             <View style={{ marginTop: 20 }}>
-              <SectionHeader title="Passées" />
+              <SectionHeader title="Passees" />
             </View>
             {past.map(renderVisit)}
           </>
@@ -224,11 +312,18 @@ const styles = StyleSheet.create({
   visitClient: { fontSize: 12, color: Colors.textSoft, marginBottom: 5 },
   visitMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 },
   visitMetaText: { fontSize: 11, color: Colors.textSoft },
+  confirmationInfoBadge: { marginTop: 4, marginBottom: 4, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.lavenderUltra, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  confirmationInfoText: { fontSize: 11, fontWeight: '700', color: Colors.primary },
   visitNotes: { fontSize: 11, color: Colors.textMuted, fontStyle: 'italic', lineHeight: 16 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20, flexShrink: 0 },
   statusText: { fontSize: 10, fontWeight: '700' },
+  inlineActions: { flexDirection: 'row', gap: 8, marginTop: 10, flexWrap: 'wrap' },
   editBtn: { marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.lavenderUltra, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
   editBtnText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
+  completeBtn: { marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.accentMagenta, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
+  completeBtnText: { fontSize: 12, fontWeight: '700', color: Colors.white },
+  interestBtn: { marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.primary, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8 },
+  interestBtnText: { fontSize: 12, fontWeight: '700', color: Colors.white },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(5,2,18,0.72)', justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: Colors.bgCard, borderRadius: 22, padding: 20, borderWidth: 1, borderColor: Colors.borderSoft },
   modalTitle: { fontSize: 28, fontWeight: '800', color: Colors.textDark, marginBottom: 8 },

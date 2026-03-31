@@ -306,7 +306,7 @@ export interface Appointment {
   notes?: string;
 }
 
-export type InterestConfirmationStatus = 'pending' | 'confirmed' | 'declined' | 'needs_followup';
+export type InterestConfirmationStatus = 'pending' | 'confirmed' | 'declined' | 'needs_followup' | 'expired';
 
 export interface InterestConfirmation {
   id: string;
@@ -328,6 +328,8 @@ export interface InterestConfirmation {
   requestMessage?: string;
   responseNote?: string;
   requestedAt: string;
+  expiresAt?: string | null;
+  expiredAt?: string | null;
   respondedAt?: string | null;
   transferredAt?: string | null;
   createdAt: string;
@@ -386,6 +388,27 @@ export interface Conversation {
   unreadCount: number;
   relatedPropertyId?: string;
   relatedPropertyTitle?: string;
+}
+
+export type CallSessionStatus = 'ringing' | 'accepted' | 'rejected' | 'missed' | 'ended' | 'cancelled';
+export type CallSessionDirection = 'incoming' | 'outgoing';
+
+export interface CallSession {
+  id: string;
+  conversationId: string;
+  callerId: string;
+  callerName: string;
+  receiverId: string;
+  receiverName: string;
+  relatedPropertyId?: string | null;
+  relatedPropertyTitle?: string | null;
+  callType?: 'audio';
+  status: CallSessionStatus;
+  startedAt: string;
+  answeredAt?: string | null;
+  endedAt?: string | null;
+  durationSec?: number;
+  direction?: CallSessionDirection | null;
 }
 
 // ── Project (Promoter) ─────────────────────────────────────

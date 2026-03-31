@@ -6,6 +6,7 @@ import Constants from 'expo-constants';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AppProvider, useApp } from './src/context/AppContext';
+import { CallProvider } from './src/context/CallContext';
 
 // Onboarding
 import { SplashScreen }     from './src/screens/onboarding/SplashScreen';
@@ -68,8 +69,10 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <AppProvider>
-          <StatusBar style="light" />
-          <AppRouter />
+          <CallProvider>
+            <StatusBar style="light" />
+            <AppRouter />
+          </CallProvider>
         </AppProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

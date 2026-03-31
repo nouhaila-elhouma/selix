@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Easing, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
@@ -71,21 +71,6 @@ export function DashboardScreen() {
   }, [headerFade, headerLift, kpiAnims]);
 
   const promoterNotifications = notifications.slice(0, 6);
-
-  const handleCallCommercial = async (phone?: string) => {
-    const value = String(phone || '').trim();
-    if (!value) {
-      Alert.alert('Contact', 'Aucun numero commercial disponible.');
-      return;
-    }
-    const url = `tel:${value}`;
-    const supported = await Linking.canOpenURL(url);
-    if (!supported) {
-      Alert.alert('Contact', 'Impossible d ouvrir l application telephone.');
-      return;
-    }
-    await Linking.openURL(url);
-  };
 
   const handleOpenChat = async (member: PromoterTeamMember) => {
     if (!currentUser?.id) return;
@@ -249,10 +234,6 @@ export function DashboardScreen() {
                 <Stat label="CA signe" value={`${Math.round(item.signedRevenue / 1000)}k`} />
               </View>
               <View style={styles.actionsRow}>
-                <TouchableOpacity style={styles.contactBtn} onPress={() => handleCallCommercial(item.phone)}>
-                  <Ionicons name="call-outline" size={16} color={Colors.primary} />
-                  <Text style={styles.contactBtnText}>Contacter</Text>
-                </TouchableOpacity>
                 <TouchableOpacity style={styles.chatBtn} onPress={() => handleOpenChat(item)}>
                   <Ionicons name="chatbubble-outline" size={16} color={Colors.success} />
                   <Text style={styles.chatBtnText}>Chat</Text>
@@ -351,8 +332,6 @@ const styles = StyleSheet.create({
   hotBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.danger },
   teamStats: { flexDirection: 'row', justifyContent: 'space-between' },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  contactBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.lavenderUltra, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  contactBtnText: { fontSize: 12, fontWeight: '700', color: Colors.primary },
   chatBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.successLight, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
   chatBtnText: { fontSize: 12, fontWeight: '700', color: Colors.success },
   statValue: { fontSize: 16, fontWeight: '800', color: Colors.textDark },
