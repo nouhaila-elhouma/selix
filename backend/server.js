@@ -551,24 +551,29 @@ const leadScore = (a = {}) => {
   if (String(a.netIncome || '').trim()) score += 3;
 
   if (['Immediat', 'Imm\u00E9diat'].includes(a.purchaseDeadline)) score += 18;
-  else if (a.purchaseDeadline === '3 mois') score += 12;
-  else if (a.purchaseDeadline === '6 mois') score += 8;
+  else if (['Moins de 1 mois', '1 a 3 mois', '3 mois'].includes(a.purchaseDeadline)) score += 12;
+  else if (['3 a 6 mois', '6 mois'].includes(a.purchaseDeadline)) score += 8;
   else if (a.purchaseDeadline === '1 an') score += 4;
 
-  if (['Investir', 'Habiter'].includes(String(a.objective || ''))) score += 4;
+  if (String(a.objective || '').trim()) score += 6;
   if (String(a.clientGoal || '').trim()) score += 4;
-  if (String(a.propertyType || '').trim()) score += 5;
-  if (String(a.targetZone || a.searchedCity || '').trim()) score += 5;
+  if (String(a.propertyType || '').trim() || (a.propertyTypes || []).length) score += 6;
+  if (String(a.targetZone || a.searchedCity || '').trim() || (a.searchedCities || []).length) score += 6;
   if (areaMin > 0) score += 3;
   if (areaMax > 0) score += 2;
   if (Number(a.rooms || 0) > 0) score += 4;
   if (Number(a.bathrooms || 0) > 0) score += 2;
 
-  if ((a.mustHave || []).length >= 3) score += 6;
-  else if ((a.mustHave || []).length > 0) score += 3;
+  const strictCriteria = (a.mustHave || []).length + (a.mandatoryCriteria || []).length;
+  if (strictCriteria >= 3) score += 6;
+  else if (strictCriteria > 0) score += 3;
   if ((a.requiredCriteria || []).length > 0) score += 4;
+  if ((a.veryImportantCriteria || []).length > 0) score += 3;
   if (a.isMRE) score += 4;
   if (String(a.expectedYield || a.expectedRentalYield || '').trim()) score += 3;
+  if (a.qualificationIndicators) {
+    score += Math.round(((Number(a.qualificationIndicators.needPrecision || 0) + Number(a.qualificationIndicators.estimatedSeriousness || 0)) / 200) * 8);
+  }
 
   score += Math.min(8, urgency + seriousness + financingReadiness);
   return Math.max(0, Math.min(100, Math.round(score)));
@@ -651,6 +656,7 @@ function formatProperty(row) {
     commercialId: row.commercialId || '', commercialName: row.commercialName || '', projectStatus: row.projectStatus || '',
     visibleInMatching: row.visibleInMatching == null ? true : !!row.visibleInMatching,
     isActive: row.isActive == null ? true : !!row.isActive,
+    specs: parseJson(row.specsJson, {}),
   };
 }
 
@@ -668,6 +674,7 @@ function formatProject(row) {
     commercialId: row.commercialId || '',
     commercialName: row.commercialName || '',
     features: parseJson(row.features, []),
+    specs: parseJson(row.specsJson, {}),
     units: parseJson(row.unitsJson, []),
   };
 }
@@ -683,28 +690,34 @@ async function matchedProperties(answers = {}) {
   `);
   const budget = Number(answers.budgetRaw || answers.budgetMaxRaw || 0);
   const budgetMin = Number(answers.budgetMinRaw || 0);
-  const searchedCity = String(answers.searchedCity || answers.city || '').trim().toLowerCase();
-  const targetZone = String(answers.targetZone || '').trim().toLowerCase();
+  const searchedCities = Array.from(new Set([...(answers.searchedCities || []), answers.searchedCity || answers.city || ''].map((item) => String(item || '').trim().toLowerCase()).filter(Boolean)));
+  const targetZones = Array.from(new Set([...(answers.searchedDistricts || []), answers.targetZone || ''].map((item) => String(item || '').trim().toLowerCase()).filter(Boolean)));
   const mustHave = [
     ...(answers.mustHave || []),
+    ...(answers.mandatoryCriteria || []),
+    ...(answers.veryImportantCriteria || []),
     ...(answers.requiredCriteria || []),
   ].map((item) => String(item).toLowerCase());
   const desiredAreaMin = Number(answers.desiredAreaMinRaw || answers.desiredAreaRaw || 0);
   const desiredAreaMax = Number(answers.desiredAreaMaxRaw || 0);
-  const desiredRooms = Number(answers.rooms || 0);
+  const desiredRooms = Number(answers.bedroomsMin || answers.rooms || 0);
+  const budgetFlexRatio = 1 + (Math.min(30, Number(answers.budgetFlexibilityPercent || 0)) / 100);
 
   return rows
     .map(formatProperty)
     .map((property) => {
       let score = 25;
-      if (answers.propertyType && property.type === answers.propertyType) score += 24;
-      if (searchedCity && property.city.toLowerCase() === searchedCity) score += 16;
-      if (targetZone && property.district.toLowerCase().includes(targetZone)) score += 18;
+      const propertySpecs = property.specs || {};
+      const propertyTypeTargets = answers.propertyTypes?.length ? answers.propertyTypes : [answers.propertyType].filter(Boolean);
+      if (propertyTypeTargets.includes(property.type)) score += 24;
+      if (searchedCities.some((city) => property.city.toLowerCase() === city)) score += 16;
+      if (targetZones.some((zone) => property.district.toLowerCase().includes(zone))) score += 18;
+      if ((answers.projectTypes || []).some((item) => (propertySpecs.projectTypes || []).includes(item))) score += 8;
 
       if (budget > 0) {
         if (property.priceRaw <= budget) score += 18;
-        else if (property.priceRaw <= budget * 1.1) score += 10;
-        else if (property.priceRaw <= budget * 1.25) score += 4;
+        else if (property.priceRaw <= budget * Math.max(1.1, budgetFlexRatio)) score += 10;
+        else if (property.priceRaw <= budget * Math.max(1.2, budgetFlexRatio)) score += 4;
       }
       if (budgetMin > 0 && property.priceRaw >= budgetMin) score += 4;
 
@@ -712,15 +725,15 @@ async function matchedProperties(answers = {}) {
       if (desiredAreaMax > 0 && property.areaRaw <= desiredAreaMax) score += 4;
       if (desiredRooms > 0 && property.rooms >= desiredRooms) score += 6;
 
-      if (answers.objective === 'Investir' && ['Studio', 'Appartement', 'Bureau', 'Local'].includes(property.type)) {
+      if (String(answers.objective || '').includes('Investissement') && ['Studio', 'Appartement', 'Bureau', 'Local', 'Plateau bureau', 'Local commercial'].includes(property.type)) {
         score += 8;
       }
-      if (answers.objective === 'Habiter' && ['Villa', 'Appartement', 'Duplex', 'Penthouse', 'Riad'].includes(property.type)) {
+      if (String(answers.objective || '').includes('Residence') && ['Villa', 'Appartement', 'Duplex', 'Penthouse', 'Riad', 'Maison'].includes(property.type)) {
         score += 8;
       }
 
       if (mustHave.length) {
-        const highlights = property.highlights.map((item) => String(item).toLowerCase());
+        const highlights = [...property.highlights.map((item) => String(item).toLowerCase()), ...((propertySpecs.amenities || []).map((item) => String(item).toLowerCase()))];
         const matchedCriteria = mustHave.filter((item) => highlights.some((highlight) => highlight.includes(item)));
         score += Math.min(12, matchedCriteria.length * 4);
       }
@@ -731,6 +744,10 @@ async function matchedProperties(answers = {}) {
       if (normalizeYesNoPreference(answers.terraceRequired, '') === 'Oui' && property.highlights.some((item) => /terrasse|balcon/i.test(String(item)))) score += 4;
       if (normalizeYesNoPreference(answers.gardenRequired, '') === 'Oui' && property.highlights.some((item) => /jardin/i.test(String(item)))) score += 4;
       if (String(answers.viewPreference || '').trim() && String(answers.viewPreference).toLowerCase() !== 'sans préférence' && property.highlights.some((item) => String(item).toLowerCase().includes(String(answers.viewPreference).toLowerCase()))) score += 4;
+      if ((answers.viewPreferences || []).length && (propertySpecs.viewOptions || []).some((item) => (answers.viewPreferences || []).map((value) => String(value).toLowerCase()).includes(String(item).toLowerCase()))) score += 6;
+      if (answers.gatedResidenceRequired && propertySpecs.residenceType === 'Fermee') score += 5;
+      if (answers.securityRequired && (propertySpecs.securityFeatures || []).length) score += 5;
+      if (answers.deliveryMaxMonths && Number(propertySpecs.deliveryMaxMonths || 0) > 0 && Number(propertySpecs.deliveryMaxMonths || 0) <= Number(answers.deliveryMaxMonths || 0)) score += 5;
 
       const finalScore = Math.max(0, Math.min(100, Math.round(score)));
       return {
@@ -2149,6 +2166,7 @@ function normalizeProjectPayload(body = {}) {
     image,
     images: Array.isArray(body.images) ? body.images.map((item) => String(item || '').trim()).filter(Boolean) : [],
     features: Array.isArray(body.features) ? body.features.map((item) => String(item || '').trim()).filter(Boolean) : [],
+    specs: body.specs && typeof body.specs === 'object' ? body.specs : {},
     units: Array.isArray(body.units) ? body.units : [],
     isActive: body.isActive == null ? true : !!body.isActive,
     visibleInMatching: body.visibleInMatching == null ? true : !!body.visibleInMatching,
@@ -2197,6 +2215,7 @@ function normalizeProjectUnitsPayload(projectId, payload) {
   const sharedImages = payload.images.length ? payload.images : (payload.image ? [payload.image] : []);
   const sharedHighlights = payload.features || [];
   const sharedCommercialId = payload.commercialId || null;
+  const sharedSpecs = payload.specs && typeof payload.specs === 'object' ? payload.specs : {};
 
   const normalizedUnits = rawUnits
     .map((item, index) => ({
@@ -2218,6 +2237,7 @@ function normalizeProjectUnitsPayload(projectId, payload) {
       image: String(item?.image || payload.image || '').trim(),
       images: Array.isArray(item?.images) ? item.images.map((entry) => String(entry || '').trim()).filter(Boolean) : sharedImages,
       highlights: Array.isArray(item?.highlights) ? item.highlights.map((entry) => String(entry || '').trim()).filter(Boolean) : sharedHighlights,
+      specs: item?.specs && typeof item.specs === 'object' ? item.specs : sharedSpecs,
       description: String(item?.description || payload.description || '').trim(),
     }))
     .filter((item) => item.label);
@@ -2243,6 +2263,7 @@ function normalizeProjectUnitsPayload(projectId, payload) {
     image: payload.image || '',
     images: sharedImages,
     highlights: sharedHighlights,
+    specs: sharedSpecs,
     description: payload.description || '',
   }];
 }
@@ -2265,6 +2286,7 @@ async function listProjectUnits(projectId) {
     image: row.image || '',
     images: parseJson(row.images, row.image ? [row.image] : []),
     highlights: parseJson(row.highlights, []),
+    specs: parseJson(row.specsJson, {}),
     description: row.description || '',
     commercialId: row.commercialId || '',
   }));
@@ -2277,8 +2299,8 @@ async function syncProjectUnits(projectId, payload) {
   for (const unit of normalizedUnits) {
     await db.query(
       `INSERT INTO project_units (
-        id, projectId, promoterId, commercialId, label, unitType, priceRaw, areaRaw, bedrooms, bathrooms, floor, availability, isActive, visibleInMatching, referenceCode, image, images, highlights, description
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, projectId, promoterId, commercialId, label, unitType, priceRaw, areaRaw, bedrooms, bathrooms, floor, availability, isActive, visibleInMatching, referenceCode, image, images, highlights, specsJson, description
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         promoterId = VALUES(promoterId),
         commercialId = VALUES(commercialId),
@@ -2296,6 +2318,7 @@ async function syncProjectUnits(projectId, payload) {
         image = VALUES(image),
         images = VALUES(images),
         highlights = VALUES(highlights),
+        specsJson = VALUES(specsJson),
         description = VALUES(description),
         updatedAt = CURRENT_TIMESTAMP`,
       [
@@ -2317,6 +2340,7 @@ async function syncProjectUnits(projectId, payload) {
         unit.image,
         JSON.stringify(unit.images),
         JSON.stringify(unit.highlights),
+        JSON.stringify(unit.specs || {}),
         unit.description,
       ],
     );
@@ -2346,6 +2370,7 @@ async function syncProjectAsProperty(projectId) {
   if (!rows.length) return;
   const project = rows[0];
   const features = parseJson(project.features, []);
+  const projectSpecs = parseJson(project.specsJson, {});
   const units = await listProjectUnits(projectId);
   const incomingPropertyIds = [];
 
@@ -2387,6 +2412,7 @@ async function syncProjectAsProperty(projectId) {
         bathrooms: item.bathrooms,
         available: ['Disponible', 'Reserve', 'Réservé'].includes(item.availability),
       }))),
+      JSON.stringify({ ...projectSpecs, ...(unit.specs || {}), propertyTypes: [unit.unitType || project.type || 'Appartement'] }),
       unit.image || project.image || '',
       JSON.stringify(unit.images?.length ? unit.images : parseJson(project.images, project.image ? [project.image] : [])),
       unit.availability || 'Disponible',
@@ -2402,7 +2428,7 @@ async function syncProjectAsProperty(projectId) {
       await db.query(
         `UPDATE properties
          SET title = ?, project = ?, projectId = ?, promoter = ?, promoterId = ?, commercialId = ?, commercialName = ?, projectStatus = ?, visibleInMatching = ?, isActive = ?, type = ?, city = ?, district = ?,
-             priceRaw = ?, areaRaw = ?, rooms = ?, floor = ?, description = ?, highlights = ?, optionsJson = ?,
+             priceRaw = ?, areaRaw = ?, rooms = ?, floor = ?, description = ?, highlights = ?, optionsJson = ?, specsJson = ?,
              image = ?, images = ?, availability = ?, monthlyEstimateRaw = ?, score = ?, badge = ?, delivery = ?,
              referenceCode = ?, updatedAt = CURRENT_TIMESTAMP
          WHERE id = ?`,
@@ -2412,9 +2438,9 @@ async function syncProjectAsProperty(projectId) {
       await db.query(
         `INSERT INTO properties (
           id, title, project, projectId, promoter, promoterId, commercialId, commercialName, projectStatus, visibleInMatching, isActive, type, city, district, priceRaw, areaRaw, rooms, floor,
-          description, highlights, optionsJson, image, images, availability, monthlyEstimateRaw, score, badge,
+          description, highlights, optionsJson, specsJson, image, images, availability, monthlyEstimateRaw, score, badge,
           delivery, referenceCode
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [propertyId, ...propertyPayload],
       );
     }
@@ -2509,14 +2535,14 @@ async function ensureIndex(tableName, indexName, definition) {
 async function createTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (id VARCHAR(36) PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) UNIQUE NOT NULL, phone VARCHAR(30), password VARCHAR(255) NOT NULL, role ENUM('client','commercial','admin','promoter') DEFAULT 'client', adminRole VARCHAR(32) NULL, accountStatus VARCHAR(16) DEFAULT 'active', accountValidationStatus VARCHAR(24) DEFAULT 'draft', accessScope JSON NULL, permissions JSON NULL, hasCompletedQuestionnaire BOOLEAN DEFAULT FALSE, avatar VARCHAR(255), expoPushToken VARCHAR(255) NULL, pushTokenUpdatedAt DATETIME NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-    CREATE TABLE IF NOT EXISTS properties (id VARCHAR(36) PRIMARY KEY, title VARCHAR(255) NOT NULL, project VARCHAR(255), promoter VARCHAR(255), promoterId VARCHAR(36), commercialId VARCHAR(36) NULL, commercialName VARCHAR(255) NULL, projectStatus VARCHAR(100) NULL, visibleInMatching BOOLEAN DEFAULT TRUE, isActive BOOLEAN DEFAULT TRUE, type VARCHAR(100), city VARCHAR(255), district VARCHAR(255), priceRaw INT DEFAULT 0, areaRaw INT DEFAULT 0, rooms INT DEFAULT 0, floor INT DEFAULT 0, description TEXT, highlights JSON, optionsJson JSON, image VARCHAR(500), images JSON, availability VARCHAR(50) DEFAULT 'Disponible', monthlyEstimateRaw INT DEFAULT 0, score INT DEFAULT 80, badge VARCHAR(50) DEFAULT 'Bon potentiel', delivery VARCHAR(100), referenceCode VARCHAR(100), createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS properties (id VARCHAR(36) PRIMARY KEY, title VARCHAR(255) NOT NULL, project VARCHAR(255), promoter VARCHAR(255), promoterId VARCHAR(36), commercialId VARCHAR(36) NULL, commercialName VARCHAR(255) NULL, projectStatus VARCHAR(100) NULL, visibleInMatching BOOLEAN DEFAULT TRUE, isActive BOOLEAN DEFAULT TRUE, type VARCHAR(100), city VARCHAR(255), district VARCHAR(255), priceRaw INT DEFAULT 0, areaRaw INT DEFAULT 0, rooms INT DEFAULT 0, floor INT DEFAULT 0, description TEXT, highlights JSON, optionsJson JSON, specsJson JSON NULL, image VARCHAR(500), images JSON, availability VARCHAR(50) DEFAULT 'Disponible', monthlyEstimateRaw INT DEFAULT 0, score INT DEFAULT 80, badge VARCHAR(50) DEFAULT 'Bon potentiel', delivery VARCHAR(100), referenceCode VARCHAR(100), createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS leads (id VARCHAR(36) PRIMARY KEY, clientId VARCHAR(36) NOT NULL, answers JSON, status VARCHAR(32) DEFAULT 'new', notes TEXT, commercialId VARCHAR(36), promoterId VARCHAR(36) NULL, projectId VARCHAR(36) NULL, city VARCHAR(255) NULL, district VARCHAR(255) NULL, source VARCHAR(32) DEFAULT 'questionnaire', score INT DEFAULT 0, temperature VARCHAR(16) DEFAULT 'warm', createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS favorites (id VARCHAR(36) PRIMARY KEY, userId VARCHAR(36) NOT NULL, propertyId VARCHAR(36) NOT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY uniq_favorite (userId, propertyId));
     CREATE TABLE IF NOT EXISTS swipes (id VARCHAR(36) PRIMARY KEY, userId VARCHAR(36) NOT NULL, propertyId VARCHAR(36) NOT NULL, liked BOOLEAN NOT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY uniq_swipe (userId, propertyId));
     CREATE TABLE IF NOT EXISTS client_project_actions (id VARCHAR(36) PRIMARY KEY, userId VARCHAR(36) NOT NULL, propertyId VARCHAR(36) NOT NULL, actionType VARCHAR(24) NOT NULL, metadata JSON NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS matches (id VARCHAR(36) PRIMARY KEY, clientId VARCHAR(36) NOT NULL, propertyId VARCHAR(36) NOT NULL, leadId VARCHAR(36) NULL, conversationId VARCHAR(36) NULL, commercialId VARCHAR(36) NULL, promoterId VARCHAR(36) NULL, matchedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS appointments (id VARCHAR(36) PRIMARY KEY, clientId VARCHAR(36) NOT NULL, commercialId VARCHAR(36) NOT NULL, propertyId VARCHAR(36), projectId VARCHAR(36) NULL, promoterId VARCHAR(36) NULL, city VARCHAR(255) NULL, district VARCHAR(255) NULL, title VARCHAR(255) NOT NULL, description TEXT, dateTime DATETIME NOT NULL, status VARCHAR(32) DEFAULT 'scheduled', createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-    CREATE TABLE IF NOT EXISTS projects (id VARCHAR(36) PRIMARY KEY, name VARCHAR(255) NOT NULL, promoterId VARCHAR(36), promoterName VARCHAR(255), commercialId VARCHAR(36) NULL, commercialName VARCHAR(255) NULL, city VARCHAR(255), district VARCHAR(255), type VARCHAR(100), description TEXT, image VARCHAR(500), images JSON, features JSON NULL, unitsJson JSON NULL, isActive BOOLEAN DEFAULT TRUE, visibleInMatching BOOLEAN DEFAULT TRUE, status VARCHAR(100), totalUnits INT DEFAULT 0, availableUnits INT DEFAULT 0, reservedUnits INT DEFAULT 0, soldUnits INT DEFAULT 0, minPriceRaw INT DEFAULT 0, maxPriceRaw INT DEFAULT 0, areaFromRaw INT DEFAULT 0, areaToRaw INT DEFAULT 0, bedroomsFrom INT DEFAULT 0, bedroomsTo INT DEFAULT 0, viewLabel VARCHAR(255) NULL, delivery VARCHAR(100), completionPercent INT DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS projects (id VARCHAR(36) PRIMARY KEY, name VARCHAR(255) NOT NULL, promoterId VARCHAR(36), promoterName VARCHAR(255), commercialId VARCHAR(36) NULL, commercialName VARCHAR(255) NULL, city VARCHAR(255), district VARCHAR(255), type VARCHAR(100), description TEXT, image VARCHAR(500), images JSON, features JSON NULL, unitsJson JSON NULL, specsJson JSON NULL, isActive BOOLEAN DEFAULT TRUE, visibleInMatching BOOLEAN DEFAULT TRUE, status VARCHAR(100), totalUnits INT DEFAULT 0, availableUnits INT DEFAULT 0, reservedUnits INT DEFAULT 0, soldUnits INT DEFAULT 0, minPriceRaw INT DEFAULT 0, maxPriceRaw INT DEFAULT 0, areaFromRaw INT DEFAULT 0, areaToRaw INT DEFAULT 0, bedroomsFrom INT DEFAULT 0, bedroomsTo INT DEFAULT 0, viewLabel VARCHAR(255) NULL, delivery VARCHAR(100), completionPercent INT DEFAULT 0, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS deals (id VARCHAR(36) PRIMARY KEY, leadId VARCHAR(36) NOT NULL, clientId VARCHAR(36), clientName VARCHAR(255), propertyId VARCHAR(36), propertyTitle VARCHAR(255), commercialId VARCHAR(36), commercialName VARCHAR(255), promoterId VARCHAR(36), promoterName VARCHAR(255), salePrice INT DEFAULT 0, status VARCHAR(32) DEFAULT 'En cours', promoterValidatedAt DATETIME NULL, promoterValidatedBy VARCHAR(36) NULL, commissionTriggeredAt DATETIME NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS commissions (id VARCHAR(36) PRIMARY KEY, dealId VARCHAR(36), commercialId VARCHAR(36), commercialName VARCHAR(255), promoterId VARCHAR(36), propertyId VARCHAR(36), propertyTitle VARCHAR(255), clientName VARCHAR(255), salePrice INT DEFAULT 0, rate DECIMAL(5,2) DEFAULT 0, amount INT DEFAULT 0, status VARCHAR(32) DEFAULT 'En attente', dueDate DATE, paidDate DATE, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS conversations (id VARCHAR(36) PRIMARY KEY, relatedPropertyId VARCHAR(36), relatedPropertyTitle VARCHAR(255), relatedPromoterId VARCHAR(36) NULL, relatedCity VARCHAR(255) NULL, relatedDistrict VARCHAR(255) NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
@@ -2527,7 +2553,7 @@ async function createTables() {
     CREATE TABLE IF NOT EXISTS timeline_events (id VARCHAR(36) PRIMARY KEY, clientId VARCHAR(36) NOT NULL, actorRole VARCHAR(32) NOT NULL, actorName VARCHAR(255) NULL, actionType VARCHAR(64) NOT NULL, description TEXT NOT NULL, targetId VARCHAR(36) NULL, metadata JSON NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS promoter_commercial_assignments (id VARCHAR(36) PRIMARY KEY, promoterId VARCHAR(36) NOT NULL, commercialId VARCHAR(36) NOT NULL, assignedBy VARCHAR(36) NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS project_commercial_assignments (id VARCHAR(36) PRIMARY KEY, projectId VARCHAR(36) NOT NULL, commercialId VARCHAR(36) NOT NULL, assignedBy VARCHAR(36) NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
-    CREATE TABLE IF NOT EXISTS project_units (id VARCHAR(36) PRIMARY KEY, projectId VARCHAR(36) NOT NULL, promoterId VARCHAR(36) NULL, commercialId VARCHAR(36) NULL, label VARCHAR(255) NOT NULL, unitType VARCHAR(100) NULL, priceRaw INT DEFAULT 0, areaRaw INT DEFAULT 0, bedrooms INT DEFAULT 0, bathrooms INT DEFAULT 0, floor INT DEFAULT 0, availability VARCHAR(50) DEFAULT 'Disponible', isActive BOOLEAN DEFAULT TRUE, visibleInMatching BOOLEAN DEFAULT TRUE, referenceCode VARCHAR(100) NULL, image VARCHAR(500) NULL, images JSON NULL, highlights JSON NULL, description TEXT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS project_units (id VARCHAR(36) PRIMARY KEY, projectId VARCHAR(36) NOT NULL, promoterId VARCHAR(36) NULL, commercialId VARCHAR(36) NULL, label VARCHAR(255) NOT NULL, unitType VARCHAR(100) NULL, priceRaw INT DEFAULT 0, areaRaw INT DEFAULT 0, bedrooms INT DEFAULT 0, bathrooms INT DEFAULT 0, floor INT DEFAULT 0, availability VARCHAR(50) DEFAULT 'Disponible', isActive BOOLEAN DEFAULT TRUE, visibleInMatching BOOLEAN DEFAULT TRUE, referenceCode VARCHAR(100) NULL, image VARCHAR(500) NULL, images JSON NULL, highlights JSON NULL, specsJson JSON NULL, description TEXT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS promoter_accounts (promoterId VARCHAR(36) PRIMARY KEY, accountStatus VARCHAR(24) DEFAULT 'invited', currentSubscriptionId VARCHAR(36) NULL, restrictedReason TEXT NULL, createdBy VARCHAR(36) NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS subscription_plans (id VARCHAR(36) PRIMARY KEY, planKey VARCHAR(24) NOT NULL UNIQUE, name VARCHAR(100) NOT NULL, durationMonths INT NOT NULL, priceMad INT DEFAULT 0, isActive BOOLEAN DEFAULT TRUE, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS promoter_subscriptions (id VARCHAR(36) PRIMARY KEY, promoterId VARCHAR(36) NOT NULL, planId VARCHAR(36) NOT NULL, planKey VARCHAR(24) NOT NULL, status VARCHAR(24) DEFAULT 'pending', startsAt DATETIME NULL, endsAt DATETIME NULL, activatedAt DATETIME NULL, validatedBy VARCHAR(36) NULL, notes TEXT NULL, createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
@@ -2557,6 +2583,7 @@ async function createTables() {
     ['description', 'TEXT NULL'],
     ['highlights', 'JSON NULL'],
     ['optionsJson', 'JSON NULL'],
+    ['specsJson', 'JSON NULL'],
     ['image', 'VARCHAR(500) NULL'],
     ['images', 'JSON NULL'],
     ['availability', "VARCHAR(50) DEFAULT 'Disponible'"],
@@ -2673,6 +2700,7 @@ async function createTables() {
     ['images', 'JSON NULL'],
     ['features', 'JSON NULL'],
     ['unitsJson', 'JSON NULL'],
+    ['specsJson', 'JSON NULL'],
     ['isActive', 'BOOLEAN DEFAULT TRUE'],
     ['visibleInMatching', 'BOOLEAN DEFAULT TRUE'],
     ['status', 'VARCHAR(100) NULL'],
@@ -2832,6 +2860,7 @@ async function createTables() {
     ['image', 'VARCHAR(500) NULL'],
     ['images', 'JSON NULL'],
     ['highlights', 'JSON NULL'],
+    ['specsJson', 'JSON NULL'],
     ['description', 'TEXT NULL'],
   ]) {
     await ensureColumn('project_units', name, definition);
@@ -4574,13 +4603,13 @@ app.post('/api/projects', auth, async (req, res) => {
   const id = randomUUID();
   await db.query(
     `INSERT INTO projects (
-      id, name, promoterId, promoterName, commercialId, commercialName, city, district, type, description, image, images, features, unitsJson, isActive, visibleInMatching, status,
+      id, name, promoterId, promoterName, commercialId, commercialName, city, district, type, description, image, images, features, unitsJson, specsJson, isActive, visibleInMatching, status,
       totalUnits, availableUnits, reservedUnits, soldUnits, minPriceRaw, maxPriceRaw, areaFromRaw, areaToRaw,
       bedroomsFrom, bedroomsTo, viewLabel, delivery, completionPercent
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
     [
       id, payload.name, owner.id, owner.name, commercial?.id || null, commercial?.name || '', payload.city, payload.district, payload.type, payload.description,
-      payload.image, JSON.stringify(payload.images.length ? payload.images : (payload.image ? [payload.image] : [])), JSON.stringify(payload.features), JSON.stringify(payload.units), Number(payload.isActive), Number(payload.visibleInMatching), payload.status, payload.totalUnits, payload.availableUnits, payload.reservedUnits, payload.soldUnits,
+      payload.image, JSON.stringify(payload.images.length ? payload.images : (payload.image ? [payload.image] : [])), JSON.stringify(payload.features), JSON.stringify(payload.units), JSON.stringify(payload.specs || {}), Number(payload.isActive), Number(payload.visibleInMatching), payload.status, payload.totalUnits, payload.availableUnits, payload.reservedUnits, payload.soldUnits,
       payload.minPriceRaw, payload.maxPriceRaw, payload.areaFromRaw, payload.areaToRaw, payload.bedroomsFrom, payload.bedroomsTo, payload.viewLabel, payload.delivery, payload.completionPercent,
     ],
   );
@@ -4634,12 +4663,12 @@ app.patch('/api/projects/:id', auth, async (req, res) => {
   await db.query(
     `UPDATE projects
      SET promoterId = ?, promoterName = ?, commercialId = ?, commercialName = ?, name = ?, city = ?, district = ?, type = ?, description = ?, image = ?, status = ?,
-         images = ?, features = ?, unitsJson = ?, isActive = ?, visibleInMatching = ?, totalUnits = ?, availableUnits = ?, reservedUnits = ?, soldUnits = ?, minPriceRaw = ?, maxPriceRaw = ?,
+         images = ?, features = ?, unitsJson = ?, specsJson = ?, isActive = ?, visibleInMatching = ?, totalUnits = ?, availableUnits = ?, reservedUnits = ?, soldUnits = ?, minPriceRaw = ?, maxPriceRaw = ?,
          areaFromRaw = ?, areaToRaw = ?, bedroomsFrom = ?, bedroomsTo = ?, viewLabel = ?, delivery = ?, completionPercent = ?, updatedAt = CURRENT_TIMESTAMP
      WHERE id = ?`,
     [
       ownerId, ownerName, commercialId, commercialName, payload.name, payload.city, payload.district, payload.type, payload.description, payload.image, payload.status,
-      JSON.stringify(payload.images.length ? payload.images : (payload.image ? [payload.image] : [])), JSON.stringify(payload.features), JSON.stringify(payload.units), Number(payload.isActive), Number(payload.visibleInMatching), payload.totalUnits, payload.availableUnits, payload.reservedUnits, payload.soldUnits, payload.minPriceRaw,
+      JSON.stringify(payload.images.length ? payload.images : (payload.image ? [payload.image] : [])), JSON.stringify(payload.features), JSON.stringify(payload.units), JSON.stringify(payload.specs || {}), Number(payload.isActive), Number(payload.visibleInMatching), payload.totalUnits, payload.availableUnits, payload.reservedUnits, payload.soldUnits, payload.minPriceRaw,
       payload.maxPriceRaw, payload.areaFromRaw, payload.areaToRaw, payload.bedroomsFrom, payload.bedroomsTo, payload.viewLabel, payload.delivery, payload.completionPercent, req.params.id,
     ],
   );

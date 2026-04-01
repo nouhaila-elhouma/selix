@@ -73,14 +73,27 @@ export interface SupportRequest {
 // ── Property ───────────────────────────────────────────────
 export type PropertyType =
   | 'Appartement'
+  | 'Appartement economique'
+  | 'Appartement moyen standing'
+  | 'Appartement haut standing'
+  | 'Maison'
   | 'Villa'
+  | 'Villa jumelee'
+  | 'Villa isolee'
   | 'Bureau'
+  | 'Plateau bureau'
   | 'Local'
+  | 'Local commercial'
+  | 'Magasin'
   | 'Terrain'
+  | 'Lot de villa'
+  | 'Lotissement'
   | 'Duplex'
   | 'Studio'
   | 'Riad'
-  | 'Penthouse';
+  | 'Penthouse'
+  | 'Immeuble'
+  | 'Residence touristique';
 
 export type PropertyStatus = 'Disponible' | 'Réservé' | 'Vendu';
 
@@ -133,15 +146,16 @@ export interface Property {
     occupancyRate: string;
     furnished: boolean;
   };
+  specs?: ProjectCatalogSpecs;
 }
 
 // ── Lead / Questionnaire ───────────────────────────────────
 export type LeadStatus = 'Nouveau' | 'Contacté' | 'Visité' | 'Offre' | 'Signé' | 'Perdu';
 export type LeadTemperature = 'hot' | 'warm' | 'cold';
 export type LeadSource = 'questionnaire' | 'matching';
-export type Objective = 'Habiter' | 'Investir';
+export type Objective = 'Residence principale' | 'Residence secondaire' | 'Investissement locatif' | 'Revente' | 'Usage professionnel' | 'Commerce' | 'Terrain et construction' | 'Projet touristique' | 'Habiter' | 'Investir';
 export type FinancingMode = 'Cash' | 'Crédit' | 'Mixte';
-export type PurchaseDeadline = 'Immédiat' | '3 mois' | '6 mois' | '1 an' | 'Plus de 1 an';
+export type PurchaseDeadline = 'Immédiat' | 'Moins de 1 mois' | '1 a 3 mois' | '3 a 6 mois' | 'Plus tard' | '3 mois' | '6 mois' | '1 an' | 'Plus de 1 an';
 export type ContactPreference = 'Appel' | 'WhatsApp' | 'Email';
 export type PreferredLanguage = 'Français' | 'English' | 'العربية' | 'Español';
 export type ClientGoal = 'Habiter' | 'Investir' | 'Résidence secondaire' | 'Location';
@@ -153,6 +167,102 @@ export type ViewPreference = 'Mer' | 'Jardin' | 'Piscine' | 'Ville' | 'Sans pré
 export type FurnishingPreference = 'Meublé' | 'Équipé' | 'Sans préférence' | 'Non';
 export type BooleanPreference = 'Oui' | 'Non' | 'Sans préférence';
 export type LeadQualification = 'hot' | 'warm' | 'cold';
+export type ResidenceStatus = 'MRE' | 'Resident local';
+export type ContactAvailability = 'Matin' | 'Apres-midi' | 'Soir';
+export type FamilySituation = 'Celibataire' | 'Marie' | 'Avec enfants' | 'Autre';
+export type LocationFlexibility = 'Stricte' | 'Flexible';
+export type BudgetFlexibility = 'Strict' | 'Flexible';
+export type ArchitectureStyle = 'Moderne' | 'Traditionnelle' | 'Sans preference';
+export type FurnishingLevel = 'Non meuble' | 'Semi-equipe' | 'Entierement equipe' | 'Meuble';
+export type DeliveryConstraint = 'Pret a habiter' | 'En construction accepte' | 'Flexible';
+export type CoherenceClassification = 'chaud' | 'tiede' | 'froid';
+export type ProjectCategory =
+  | 'Projet neuf'
+  | 'Projet en cours de construction'
+  | 'Projet livre'
+  | 'Projet pret a habiter'
+  | 'Lotissement'
+  | 'Residence fermee'
+  | 'Residence ouverte'
+  | 'Projet subventionne'
+  | 'Projet moyen standing'
+  | 'Projet premium';
+
+export interface LeadQualificationIndicators {
+  budgetCoherence: number;
+  requestRealism: number;
+  marketCompatibility: number;
+  needPrecision: number;
+  estimatedSeriousness: number;
+}
+
+export interface LeadConsistencyIssue {
+  severity: 'low' | 'medium' | 'high';
+  code: string;
+  message: string;
+}
+
+export interface ProjectCatalogSpecs {
+  developer?: string;
+  projectHeadline?: string;
+  projectPositioning?: string;
+  projectTypes?: ProjectCategory[];
+  propertyTypes?: PropertyType[];
+  locationTags?: string[];
+  districtTags?: string[];
+  region?: string;
+  targetAudience?: string[];
+  paymentPlan?: string[];
+  unitMix?: string[];
+  nearbyLandmarks?: string[];
+  projectAdvantages?: string[];
+  programSummary?: string[];
+  permitStatus?: string;
+  launchDate?: string;
+  expectedDeliveryDate?: string;
+  landAreaRaw?: number;
+  builtAreaRaw?: number;
+  blocksCount?: number;
+  maxFloors?: number;
+  finishingLevel?: string;
+  architectureStyle?: ArchitectureStyle;
+  viewOptions?: string[];
+  amenities?: string[];
+  requiredAmenities?: string[];
+  equipment?: string[];
+  securityFeatures?: string[];
+  furnishingLevel?: FurnishingLevel;
+  kitchenStyle?: 'Ouverte' | 'Separee' | 'Les deux' | 'Sans preference';
+  residenceType?: 'Fermee' | 'Ouverte' | 'Sans preference';
+  isSubsidized?: boolean;
+  acceptedFinancingModes?: FinancingMode[];
+  deliveryConstraint?: DeliveryConstraint;
+  deliveryMaxMonths?: number;
+  readyToLive?: boolean;
+  constructionAccepted?: boolean;
+  floorMin?: number;
+  floorMax?: number;
+  elevator?: boolean;
+  pmrAccess?: boolean;
+  parking?: boolean;
+  parkingSpots?: number;
+  balcony?: boolean;
+  terrace?: boolean;
+  garden?: boolean;
+  pool?: boolean;
+  garage?: boolean;
+  storage?: boolean;
+  furnished?: boolean;
+  equippedKitchen?: boolean;
+  airConditioning?: boolean;
+  heating?: boolean;
+  fiber?: boolean;
+  acousticInsulation?: boolean;
+  thermalInsulation?: boolean;
+  bathroomsMin?: number;
+  livingRoomsMin?: number;
+  guestToiletsMin?: number;
+}
 
 export interface LeadAnswers {
   // Step 1 — Identity
@@ -253,6 +363,103 @@ export interface LeadAnswers {
   projectSeriousness?: number;
   financingReadiness?: number;
   compatibilityScore?: number;
+  residenceStatus?: ResidenceStatus;
+  secondaryPhone?: string;
+  nationality?: string;
+  contactAvailability?: ContactAvailability;
+  profession?: string;
+  familySituation?: FamilySituation;
+  searchedCities?: string[];
+  searchedDistricts?: string[];
+  preferredRegion?: string;
+  locationFlexibility?: LocationFlexibility;
+  maxDistanceKm?: number;
+  locationPreferences?: string[];
+  propertyTypes?: PropertyType[];
+  projectTypes?: ProjectCategory[];
+  otherPropertyType?: string;
+  currency?: string;
+  budgetMaxRaw?: number;
+  budgetFlexibility?: BudgetFlexibility;
+  budgetFlexibilityPercent?: number;
+  creditApproved?: boolean;
+  bankConsulted?: boolean;
+  monthlyInstallmentMaxRaw?: number;
+  loanDurationYears?: number;
+  financingCapacityEstimateRaw?: number;
+  householdIncomeRaw?: number;
+  existingFinancialCommitmentsRaw?: number;
+  bedroomsMin?: number;
+  bedroomsMax?: number;
+  livingRoomsMin?: number;
+  bathroomsMin?: number;
+  guestToiletsMin?: number;
+  kitchenPreference?: 'Ouverte' | 'Separee' | 'Sans preference';
+  doubleSalonWanted?: boolean;
+  masterSuiteWanted?: boolean;
+  maidRoomWanted?: boolean;
+  officeWanted?: boolean;
+  laundryWanted?: boolean;
+  storageWanted?: boolean;
+  floorPreference?: string;
+  floorMin?: number;
+  floorMax?: number;
+  groundFloorAccepted?: boolean;
+  topFloorAccepted?: boolean;
+  elevatorRequired?: boolean;
+  pmrAccessRequired?: boolean;
+  stairsOnlyAccepted?: boolean;
+  parkingSpotsMin?: number;
+  garageWanted?: boolean;
+  balconyRequired?: boolean;
+  gardenRequiredStrict?: boolean;
+  poolWanted?: boolean;
+  cellarWanted?: boolean;
+  boxRoomWanted?: boolean;
+  gatedResidenceRequired?: boolean;
+  securityRequired?: boolean;
+  surveillanceWanted?: boolean;
+  equippedKitchenRequired?: boolean;
+  semiEquippedAccepted?: boolean;
+  fullyEquippedRequired?: boolean;
+  furnishingLevelWanted?: FurnishingLevel;
+  airConditioningWanted?: boolean;
+  preinstalledAirConditioningAccepted?: boolean;
+  heatingWanted?: boolean;
+  acousticInsulationWanted?: boolean;
+  thermalInsulationWanted?: boolean;
+  fiberWanted?: boolean;
+  finishingLevelWanted?: string;
+  premiumMaterialsWanted?: boolean;
+  marbleWanted?: boolean;
+  parquetWanted?: boolean;
+  premiumJoineryWanted?: boolean;
+  modernKitchenWanted?: boolean;
+  modernBathroomWanted?: boolean;
+  architectureStyleWanted?: ArchitectureStyle;
+  modernFacadeWanted?: boolean;
+  viewPreferences?: string[];
+  sunExposureImportant?: boolean;
+  overlookingAccepted?: boolean;
+  noiseAccepted?: boolean;
+  quietNeighborhoodRequired?: boolean;
+  readyToMoveRequired?: boolean;
+  underConstructionAccepted?: boolean;
+  deliveryMaxMonths?: number;
+  immediateDeliveryWanted?: boolean;
+  urgentPurchase?: boolean;
+  mandatoryCriteria?: string[];
+  veryImportantCriteria?: string[];
+  negotiableCriteria?: string[];
+  secondaryCriteria?: string[];
+  absoluteRejections?: string[];
+  compromiseLevel?: string;
+  nearMatchAccepted?: boolean;
+  consistencyIssues?: LeadConsistencyIssue[];
+  qualificationIndicators?: LeadQualificationIndicators;
+  qualificationLabel?: CoherenceClassification;
+  marketSummary?: string;
+  deliveryConstraint?: DeliveryConstraint;
 }
 
 export interface LeadStatusHistory {
@@ -446,14 +653,18 @@ export interface Project {
   commercialId?: string;
   commercialName?: string;
   features?: string[];
+  specs?: ProjectCatalogSpecs;
   units?: Array<{
     id: string;
     label: string;
+    unitType?: PropertyType;
     priceRaw: number;
     areaRaw?: number;
     bedrooms?: number;
     bathrooms?: number;
+    floor?: number;
     available?: boolean;
+    specs?: ProjectCatalogSpecs;
   }>;
 }
 

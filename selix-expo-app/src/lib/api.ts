@@ -263,6 +263,7 @@ export const Projects = {
     image: string;
     images: string[];
     features?: string[];
+    specs?: Record<string, unknown>;
     units?: unknown[];
     isActive?: boolean;
     visibleInMatching?: boolean;
@@ -291,6 +292,7 @@ export const Projects = {
     image: string;
     images: string[];
     features?: string[];
+    specs?: Record<string, unknown>;
     units?: unknown[];
     isActive?: boolean;
     visibleInMatching?: boolean;
