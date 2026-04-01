@@ -89,8 +89,8 @@ const uploadMessageFile = multer({
   },
 });
 
-const leadToDb = { Nouveau: 'new', Contacté: 'contacted', Visité: 'qualified', Offre: 'qualified', Signé: 'converted', Perdu: 'lost' };
-const leadFromDb = { new: 'Nouveau', contacted: 'Contacté', qualified: 'Visité', converted: 'Signé', lost: 'Perdu' };
+const leadToDb = { Nouveau: 'new', Contacté: 'contacted', Visité: 'qualified', Offre: 'offered', Signé: 'converted', Perdu: 'lost' };
+const leadFromDb = { new: 'Nouveau', contacted: 'Contacté', qualified: 'Visité', offered: 'Offre', converted: 'Signé', lost: 'Perdu' };
 const apptToDb = { Planifié: 'scheduled', Confirmé: 'confirmed', Effectué: 'completed', Annulé: 'cancelled', 'Report demande': 'reschedule_requested' };
 const apptFromDb = { scheduled: 'Planifié', confirmed: 'Confirmé', completed: 'Effectué', cancelled: 'Annulé', reschedule_requested: 'Report demande' };
 
@@ -772,7 +772,7 @@ async function formatProjectWithUnits(row) {
 }
 
 function advancedLeadStatus(status = '') {
-  return ['qualified', 'converted'].includes(status);
+  return ['qualified', 'offered', 'converted'].includes(status);
 }
 
 async function formatLead(row) {

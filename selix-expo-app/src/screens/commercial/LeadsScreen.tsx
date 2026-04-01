@@ -37,15 +37,6 @@ const STATUS_COLORS: Record<LeadStatus, string> = {
   Perdu: Colors.statusLost,
 };
 
-const PIPELINE_ACTIONS_DISPLAY: LeadStatus[] = ['Contacté', 'Visité', 'Offre', 'Perdu'];
-const STATUS_COLORS_DISPLAY: Record<string, string> = {
-  Nouveau: Colors.statusNew,
-  Contacté: Colors.statusContacted,
-  Visité: Colors.statusVisited,
-  Offre: Colors.statusOffer,
-  Signé: Colors.statusSigned,
-  Perdu: Colors.statusLost,
-};
 
 function validationLabel(status?: string) {
   if (status === 'validated') return 'Valide';
@@ -548,16 +539,25 @@ export function LeadsScreen() {
                   label="Transmission promoteur"
                   value={selected.latestTransfer ? 'Transmis' : 'Pas encore'}
                 />
-                <Text style={styles.helperText}>
-                  Envoie cette demande apres la visite pour qualifier le lead avant transmission au promoteur.
-                </Text>
-                <TouchableOpacity
-                  style={styles.contactBtn}
-                  onPress={() => openInterestModal(selected)}
-                >
-                  <Ionicons name="paper-plane-outline" size={16} color={Colors.primary} />
-                  <Text style={styles.contactBtnText}>Demander la confirmation</Text>
-                </TouchableOpacity>
+                {selected.status === 'Visité' && selected.latestInterestConfirmation?.status !== 'pending' ? (
+                  <>
+                    <Text style={styles.helperText}>
+                      Envoie cette demande apres la visite pour qualifier le lead avant transmission au promoteur.
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.contactBtn}
+                      onPress={() => openInterestModal(selected)}
+                    >
+                      <Ionicons name="paper-plane-outline" size={16} color={Colors.primary} />
+                      <Text style={styles.contactBtnText}>Demander la confirmation</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : selected.latestInterestConfirmation?.status === 'pending' ? (
+                  <View style={[styles.statusBanner, { backgroundColor: `${Colors.warning}14`, borderColor: `${Colors.warning}40` }]}>
+                    <Ionicons name="hourglass-outline" size={16} color={Colors.warning} />
+                    <Text style={[styles.statusBannerText, { color: Colors.warning }]}>Confirmation envoyee — en attente du client</Text>
+                  </View>
+                ) : null}
               </View>
 
               {selected.answers.mustHave?.length > 0 && (
@@ -609,23 +609,38 @@ export function LeadsScreen() {
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>{t('leads.advance')}</Text>
-                <Text style={styles.helperText}>Le passage en offre envoie le dossier au promoteur pour validation finale.</Text>
-                <View style={styles.actionsGrid}>
-                  {PIPELINE_ACTIONS.map((action) => (
-                    <TouchableOpacity
-                      key={action}
-                      onPress={() => {
-                        handlePipelineAction(selected, action);
-                      }}
-                      style={[
-                        styles.actionBtn,
-                        { borderColor: `${STATUS_COLORS[action]}60`, backgroundColor: `${STATUS_COLORS[action]}12` },
-                      ]}
-                    >
-                      <Text style={[styles.actionBtnText, { color: STATUS_COLORS[action] }]}>{action}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                {selected.status === 'Signé' ? (
+                  <View style={styles.statusBanner}>
+                    <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+                    <Text style={[styles.statusBannerText, { color: Colors.success }]}>Dossier finalise — vente signee</Text>
+                  </View>
+                ) : selected.status === 'Offre' ? (
+                  <View style={[styles.statusBanner, { backgroundColor: `${Colors.accentOrange}14`, borderColor: `${Colors.accentOrange}40` }]}>
+                    <Ionicons name="hourglass-outline" size={18} color={Colors.accentOrange} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.statusBannerText, { color: Colors.accentOrange }]}>Offre soumise — en attente de validation promoteur</Text>
+                      <Text style={styles.helperText}>Le promoteur doit valider la vente depuis son espace pour finaliser le dossier.</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.helperText}>Le passage en offre envoie le dossier au promoteur pour validation finale.</Text>
+                    <View style={styles.actionsGrid}>
+                      {PIPELINE_ACTIONS.map((action) => (
+                        <TouchableOpacity
+                          key={action}
+                          onPress={() => handlePipelineAction(selected, action)}
+                          style={[
+                            styles.actionBtn,
+                            { borderColor: `${STATUS_COLORS[action]}60`, backgroundColor: `${STATUS_COLORS[action]}12` },
+                          ]}
+                        >
+                          <Text style={[styles.actionBtnText, { color: STATUS_COLORS[action] }]}>{action}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
               </View>
 
               <View style={{ height: 40 }} />
@@ -927,4 +942,6 @@ const styles = StyleSheet.create({
   actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   actionBtn: { minWidth: 104, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   actionBtnText: { fontSize: 13, fontWeight: '800' },
+  statusBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, padding: 12, borderRadius: 14, borderWidth: 1, backgroundColor: `${Colors.success}14`, borderColor: `${Colors.success}40` },
+  statusBannerText: { fontSize: 13, fontWeight: '700', marginBottom: 2 },
 });
