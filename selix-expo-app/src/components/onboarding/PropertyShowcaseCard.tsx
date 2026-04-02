@@ -1,7 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  Easing,
+} from 'react-native-reanimated';
 import { onboardingTheme } from './theme';
 
 type PropertyShowcaseCardProps = {
@@ -13,44 +20,99 @@ type PropertyShowcaseCardProps = {
   badgeText?: string;
 };
 
-export function PropertyShowcaseCard({
+function useCardEnter(delay = 0) {
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(18);
+  const scale = useSharedValue(0.97);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      opacity.value = withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) });
+      translateY.value = withSpring(0, { damping: 20, stiffness: 140 });
+      scale.value = withSpring(1, { damping: 20, stiffness: 140 });
+    }, delay);
+    return () => clearTimeout(t);
+  }, []);
+
+  return useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: translateY.value }, { scale: scale.value }],
+  }));
+}
+
+// ─── Swipe mode ──────────────────────────────────────────────────────────────
+
+function SwipeShowcase({
   imageUri,
   propertyName,
   standing,
   availability,
-  mode = 'stacked',
-  badgeText = 'Top Match',
-}: PropertyShowcaseCardProps) {
-  if (mode === 'swipe') {
-    return (
-      <View style={styles.swipeStage}>
-        <LinearGradient colors={['rgba(255,115,105,0.54)', 'rgba(255,115,105,0.08)']} style={[styles.swipeCue, styles.swipeCueLeft]} />
-        <LinearGradient colors={['rgba(50,217,124,0.08)', 'rgba(50,217,124,0.54)']} style={[styles.swipeCue, styles.swipeCueRight]} />
+}: Omit<PropertyShowcaseCardProps, 'mode' | 'badgeText'>) {
+  const cardAnim = useCardEnter(80);
 
-        <View style={[styles.cueArrowWrap, styles.cueArrowLeft]}>
-          <Ionicons name="arrow-back" size={62} color="rgba(255,118,94,0.86)" />
-        </View>
-        <View style={[styles.cueArrowWrap, styles.cueArrowRight]}>
-          <Ionicons name="arrow-forward" size={62} color="rgba(50,217,124,0.86)" />
-        </View>
+  return (
+    <View style={styles.swipeStage}>
+      {/* Red cue — left */}
+      <LinearGradient
+        colors={['rgba(255,107,104,0.70)', 'rgba(255,107,104,0.08)']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={[styles.swipeCue, styles.swipeCueLeft]}
+      />
+      {/* Green cue — right */}
+      <LinearGradient
+        colors={['rgba(47,209,122,0.08)', 'rgba(47,209,122,0.70)']}
+        start={{ x: 0, y: 0.5 }}
+        end={{ x: 1, y: 0.5 }}
+        style={[styles.swipeCue, styles.swipeCueRight]}
+      />
 
-        <View style={styles.swipeCard}>
-          <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
-          <LinearGradient colors={onboardingTheme.imageOverlay} style={styles.imageOverlay} />
-          <View style={styles.info}>
-            <Text style={styles.name}>{propertyName}</Text>
-            <Text style={styles.standing}>{standing}</Text>
-            <Text style={styles.availability}>{availability}</Text>
-          </View>
-        </View>
+      {/* Curved reject arrow */}
+      <View style={[styles.cueArrowWrap, styles.cueArrowLeft]}>
+        <Ionicons name="arrow-undo" size={66} color="rgba(255,107,104,0.90)" />
       </View>
-    );
-  }
+      {/* Curved like arrow */}
+      <View style={[styles.cueArrowWrap, styles.cueArrowRight]}>
+        <Ionicons name="arrow-redo" size={66} color="rgba(47,209,122,0.90)" />
+      </View>
+
+      <Animated.View style={[styles.swipeCard, cardAnim]}>
+        <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
+        <LinearGradient colors={onboardingTheme.imageOverlay} style={styles.imageOverlay} />
+        <View style={styles.info}>
+          <Text style={styles.name}>{propertyName}</Text>
+          <Text style={styles.standing}>{standing}</Text>
+          <Text style={styles.availability}>{availability}</Text>
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
+// ─── Stacked mode ─────────────────────────────────────────────────────────────
+
+function StackedShowcase({
+  imageUri,
+  propertyName,
+  standing,
+  availability,
+  badgeText = 'Top Match',
+}: Omit<PropertyShowcaseCardProps, 'mode'>) {
+  const cardAnim = useCardEnter(60);
+  const backAnim = useCardEnter(0);
 
   return (
     <View style={styles.stackWrap}>
-      <LinearGradient colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0.06)']} style={styles.backPlate} />
-      <View style={styles.frontCard}>
+      {/* Back decorative plate */}
+      <Animated.View style={backAnim}>
+        <LinearGradient
+          colors={['rgba(255,255,255,0.20)', 'rgba(160,100,255,0.08)']}
+          style={styles.backPlate}
+        />
+      </Animated.View>
+
+      {/* Front card */}
+      <Animated.View style={[styles.frontCard, cardAnim]}>
         <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
         <LinearGradient colors={onboardingTheme.imageOverlay} style={styles.imageOverlay} />
         <View style={styles.badge}>
@@ -62,86 +124,103 @@ export function PropertyShowcaseCard({
           <Text style={styles.standing}>{standing}</Text>
           <Text style={styles.availability}>{availability}</Text>
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
 
+// ─── Public export ────────────────────────────────────────────────────────────
+
+export function PropertyShowcaseCard({
+  mode = 'stacked',
+  ...props
+}: PropertyShowcaseCardProps) {
+  if (mode === 'swipe') return <SwipeShowcase {...props} />;
+  return <StackedShowcase {...props} />;
+}
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
+  // Stacked
   stackWrap: {
     position: 'relative',
-    height: 378,
+    height: 380,
     justifyContent: 'flex-end',
   },
   backPlate: {
     position: 'absolute',
-    width: '74%',
-    height: 286,
-    right: -2,
-    top: 6,
-    borderRadius: 40,
+    width: '76%',
+    height: 295,
+    right: -4,
+    top: 0,
+    borderRadius: 42,
     borderWidth: 1,
     borderColor: onboardingTheme.glassStroke,
-    transform: [{ rotate: '-1.6deg' }],
+    transform: [{ rotate: '-2deg' }],
   },
   frontCard: {
-    height: 316,
+    height: 322,
     borderRadius: 38,
     overflow: 'hidden',
-    backgroundColor: '#25124E',
+    backgroundColor: '#22104A',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    shadowColor: '#020104',
-    shadowOpacity: 0.42,
-    shadowRadius: 28,
-    shadowOffset: { width: 0, height: 18 },
-    elevation: 14,
+    borderColor: 'rgba(255,255,255,0.10)',
+    shadowColor: '#020106',
+    shadowOpacity: 0.50,
+    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 20 },
+    elevation: 16,
   },
+
+  // Swipe
   swipeStage: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 500,
+    height: 460,
   },
   swipeCue: {
     position: 'absolute',
-    top: 68,
-    width: '33%',
-    height: 314,
-    borderRadius: 40,
-    opacity: 0.95,
+    top: 52,
+    width: '36%',
+    height: 340,
+    borderRadius: 44,
+    opacity: 1,
   },
   swipeCueLeft: {
-    left: 0,
+    left: -8,
   },
   swipeCueRight: {
-    right: 0,
+    right: -8,
   },
   cueArrowWrap: {
     position: 'absolute',
-    top: 194,
+    top: 188,
     zIndex: 3,
   },
   cueArrowLeft: {
-    left: 8,
+    left: 4,
   },
   cueArrowRight: {
-    right: 8,
+    right: 4,
   },
   swipeCard: {
-    width: '72%',
-    height: 412,
+    width: '74%',
+    height: 418,
     borderRadius: 42,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#21103C',
-    shadowColor: '#020104',
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 18 },
-    elevation: 18,
+    borderColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: '#1E0E38',
+    shadowColor: '#020106',
+    shadowOpacity: 0.55,
+    shadowRadius: 34,
+    shadowOffset: { width: 0, height: 20 },
+    elevation: 20,
   },
+
+  // Shared image / overlay / info
   image: {
     width: '100%',
     height: '100%',
@@ -151,35 +230,37 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: '52%',
+    height: '54%',
   },
   info: {
     position: 'absolute',
     left: 20,
     right: 20,
-    bottom: 20,
+    bottom: 22,
   },
   name: {
     color: onboardingTheme.textPrimary,
-    fontSize: 27,
-    lineHeight: 31,
+    fontSize: 28,
+    lineHeight: 32,
     fontWeight: '700',
-    letterSpacing: -0.8,
+    letterSpacing: -0.9,
   },
   standing: {
     marginTop: 6,
     color: onboardingTheme.accentOrange,
-    fontSize: 15,
+    fontSize: 14,
     lineHeight: 18,
     fontWeight: '800',
-    letterSpacing: 0.9,
+    letterSpacing: 1.0,
   },
   availability: {
-    marginTop: 6,
-    color: 'rgba(255,255,255,0.82)',
+    marginTop: 5,
+    color: 'rgba(255,255,255,0.80)',
     fontSize: 13,
     lineHeight: 18,
   },
+
+  // Badge (stacked only)
   badge: {
     position: 'absolute',
     top: 16,
@@ -190,7 +271,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: 'rgba(28, 25, 43, 0.74)',
+    backgroundColor: 'rgba(24, 20, 40, 0.78)',
   },
   badgeText: {
     color: onboardingTheme.textPrimary,

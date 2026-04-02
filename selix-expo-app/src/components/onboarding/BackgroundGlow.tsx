@@ -1,8 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { onboardingTheme } from './theme';
 
-type GlowTone = 'pink' | 'violet' | 'blue' | 'rose';
+type GlowTone = 'pink' | 'violet' | 'blue' | 'rose' | 'purple';
 
 type BackgroundGlowProps = {
   tone?: GlowTone;
@@ -14,11 +13,12 @@ type BackgroundGlowProps = {
   opacity?: number;
 };
 
-const TONES: Record<GlowTone, string> = {
-  pink: 'rgba(244, 85, 234, 0.18)',
-  violet: 'rgba(125, 54, 244, 0.16)',
-  blue: 'rgba(92, 143, 255, 0.12)',
-  rose: 'rgba(255, 154, 124, 0.13)',
+const TONES: Record<GlowTone, { fill: string; shadow: string }> = {
+  pink:   { fill: 'rgba(244, 85, 234, 0.22)',  shadow: '#F455EA' },
+  violet: { fill: 'rgba(138, 62, 255, 0.20)',  shadow: '#8A3EFF' },
+  purple: { fill: 'rgba(90, 34, 192, 0.24)',   shadow: '#5A22C0' },
+  blue:   { fill: 'rgba(66, 177, 255, 0.15)',  shadow: '#42B1FF' },
+  rose:   { fill: 'rgba(255, 154, 124, 0.16)', shadow: '#FF9A7C' },
 };
 
 export function BackgroundGlow({
@@ -27,6 +27,8 @@ export function BackgroundGlow({
   opacity = 1,
   ...position
 }: BackgroundGlowProps) {
+  const { fill, shadow } = TONES[tone];
+
   return (
     <View
       pointerEvents="none"
@@ -36,7 +38,8 @@ export function BackgroundGlow({
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: TONES[tone],
+          backgroundColor: fill,
+          shadowColor: shadow,
           opacity,
         },
         position,
@@ -48,9 +51,8 @@ export function BackgroundGlow({
 const styles = StyleSheet.create({
   base: {
     position: 'absolute',
-    shadowColor: onboardingTheme.accentPurple,
-    shadowOpacity: 0.12,
-    shadowRadius: 40,
-    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.55,
+    shadowRadius: 60,
+    shadowOffset: { width: 0, height: 0 },
   },
 });

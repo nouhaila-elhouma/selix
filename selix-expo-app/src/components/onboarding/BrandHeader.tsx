@@ -17,6 +17,7 @@ export function BrandHeader({
 }: BrandHeaderProps) {
   return (
     <View style={styles.wrap}>
+      {/* Logo row */}
       <View style={styles.row}>
         <BrandWordmark
           size="lg"
@@ -26,17 +27,24 @@ export function BrandHeader({
         <TopRightDotsIcon />
       </View>
 
-      {title ? (
-        <Text style={[styles.title, { color: titleColor }]}>{title}</Text>
+      {/* Optional title / subtitle block */}
+      {(title || subtitle) ? (
+        <View style={styles.textBlock}>
+          {title ? (
+            <Text style={[styles.title, { color: titleColor }]}>{title}</Text>
+          ) : null}
+          {subtitle ? (
+            <Text style={styles.subtitle}>{subtitle}</Text>
+          ) : null}
+        </View>
       ) : null}
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    gap: 18,
+    gap: 14,
   },
   row: {
     flexDirection: 'row',
@@ -44,24 +52,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   brandText: {
-    fontSize: 32,
-    lineHeight: 34,
-    letterSpacing: -1.2,
+    fontSize: 33,
+    lineHeight: 35,
+    letterSpacing: -1.3,
     fontWeight: '700',
   },
   brandIcon: {
     marginTop: -1,
   },
+  textBlock: {
+    gap: 6,
+  },
   title: {
-    fontSize: 27,
-    lineHeight: 31,
+    fontSize: 26,
+    lineHeight: 30,
     fontWeight: '400',
-    letterSpacing: -0.4,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    marginTop: -10,
     fontSize: 14,
     lineHeight: 20,
     color: onboardingTheme.textSecondary,
+    letterSpacing: 0.1,
   },
 });

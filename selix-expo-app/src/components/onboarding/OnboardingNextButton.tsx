@@ -1,11 +1,15 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  Animated,
-  Pressable,
-  StyleSheet,
-  ViewStyle,
-} from 'react-native';
+import React, { useEffect } from 'react';
+import { Pressable, StyleSheet, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withSpring,
+  Easing,
+} from 'react-native-reanimated';
 import { onboardingTheme } from './theme';
 
 type OnboardingNextButtonProps = {
@@ -19,33 +23,47 @@ export function OnboardingNextButton({
   style,
   color = onboardingTheme.accentPink,
 }: OnboardingNextButtonProps) {
-  const translateX = useRef(new Animated.Value(0)).current;
+  const translateX = useSharedValue(0);
+  const pressScale = useSharedValue(1);
 
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(translateX, {
-          toValue: 4,
-          duration: 900,
-          useNativeDriver: false,
-        }),
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration: 900,
-          useNativeDriver: false,
-        }),
-      ]),
-    ).start();
-  }, [translateX]);
+    translateX.value = withRepeat(
+      withSequence(
+        withTiming(5, { duration: 800, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 800, easing: Easing.inOut(Easing.sin) }),
+      ),
+      -1,
+      false,
+    );
+  }, []);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  const buttonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
+
+  const handlePressIn = () => {
+    pressScale.value = withSpring(0.88, { damping: 14, stiffness: 260 });
+  };
+  const handlePressOut = () => {
+    pressScale.value = withSpring(1, { damping: 14, stiffness: 260 });
+  };
 
   return (
-    <Pressable onPress={onPress} hitSlop={14} style={[styles.button, style]}>
-      <Animated.View style={{ transform: [{ translateX }] }}>
-        <Ionicons
-          name="chevron-forward"
-          size={42}
-          color={color}
-        />
+    <Pressable
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      hitSlop={16}
+      style={[styles.button, style]}
+    >
+      <Animated.View style={buttonStyle}>
+        <Animated.View style={iconStyle}>
+          <Ionicons name="chevron-forward" size={44} color={color} />
+        </Animated.View>
       </Animated.View>
     </Pressable>
   );
@@ -53,8 +71,8 @@ export function OnboardingNextButton({
 
 const styles = StyleSheet.create({
   button: {
-    width: 54,
-    height: 54,
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
