@@ -559,10 +559,11 @@ export function ProjectsScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={Colors.gradientPrimary} style={styles.header}>
+      <View style={styles.header}>
+        <LinearGradient colors={["#120A28", "#1A0A35", "#0D0620"]} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
         <Text style={styles.headerTitle}>{t('projects.title')}</Text>
         <Text style={styles.headerSub}>{t('projects.count', { count: projects.length, suffix: projects.length > 1 ? 's' : '' })}</Text>
-      </LinearGradient>
+      </View>
 
       <ScrollView
         style={styles.scroll}

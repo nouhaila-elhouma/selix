@@ -35,7 +35,7 @@ export function AuthScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <LinearGradient colors={Colors.gradientHero} style={styles.container}>
+      <LinearGradient colors={['#0A0618', '#130A28', '#1A0A35', '#0D0620']} locations={[0, 0.25, 0.6, 1]} style={styles.container}>
         <View style={[styles.orb, styles.orbA]} />
         <View style={[styles.orb, styles.orbB]} />
 

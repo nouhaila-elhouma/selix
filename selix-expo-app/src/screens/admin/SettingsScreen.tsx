@@ -358,7 +358,7 @@ export function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={Colors.gradientHero} style={styles.header}>
+      <LinearGradient colors={["#0F0822", "#180A30", "#1C0B38", "#0D0620"]} locations={[0, 0.3, 0.65, 1]} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.label}>{t('settings.adminLabel')}</Text>

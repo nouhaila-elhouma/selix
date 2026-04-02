@@ -65,7 +65,7 @@ export function SalesScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
-      <LinearGradient colors={Colors.gradientHero} style={styles.header}>
+      <LinearGradient colors={["#0F0822", "#180A30", "#1C0B38", "#0D0620"]} locations={[0, 0.3, 0.65, 1]} style={styles.header}>
         <Text style={styles.headerTitle}>{t('sales.title')}</Text>
         <Text style={styles.headerSub}>{pendingDeals.length} {t('sales.pendingStatus').toLowerCase()}</Text>
       </LinearGradient>

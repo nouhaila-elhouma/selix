@@ -113,7 +113,7 @@ export function DashboardScreen() {
       showsVerticalScrollIndicator={false}
     >
       <Animated.View style={{ opacity: headerFade, transform: [{ translateY: headerLift }] }}>
-      <LinearGradient colors={Colors.gradientHero} style={styles.header}>
+      <LinearGradient colors={['#0F0822', '#180A30', '#1C0B38', '#0D0620']} locations={[0, 0.3, 0.65, 1]} style={styles.header}>
         <View style={[styles.deco, styles.decoA]} />
         <View style={styles.headerTop}>
           <View>
@@ -299,11 +299,19 @@ const styles = StyleSheet.create({
   activeBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(16,185,129,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(16,185,129,0.3)' },
   activeDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: Colors.success },
   activeText: { fontSize: 12, fontWeight: '700', color: Colors.success },
-  kpiRow: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+  kpiRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.09)',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
   kpiItem: { flex: 1, alignItems: 'center' },
-  kpiValue: { fontSize: 20, fontWeight: '800', color: Colors.white },
-  kpiLabel: { fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
-  kpiDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
+  kpiValue: { fontSize: 22, fontWeight: '900', color: Colors.white, letterSpacing: -0.3 },
+  kpiLabel: { fontSize: 10, color: 'rgba(255,255,255,0.58)', marginTop: 3, fontWeight: '600' },
+  kpiDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.14)', marginVertical: 2 },
   body: { padding: 20 },
   alertRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   alertIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },

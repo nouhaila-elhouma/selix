@@ -1,56 +1,64 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Image, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors } from '../../constants/colors';
 import { useApp } from '../../context/AppContext';
 
 export function SplashScreen() {
   const { setCurrentScreen, hasSeenOnboarding } = useApp();
-  const logoScale = useRef(new Animated.Value(0.82)).current;
+
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const panelOpacity = useRef(new Animated.Value(0)).current;
-  const panelLift = useRef(new Animated.Value(28)).current;
+  const logoScale = useRef(new Animated.Value(0.88)).current;
+  const taglineOpacity = useRef(new Animated.Value(0)).current;
+  const taglineLift = useRef(new Animated.Value(12)).current;
+  const orbOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.spring(logoScale, { toValue: 1, friction: 7, tension: 60, useNativeDriver: false }),
-      Animated.timing(logoOpacity, { toValue: 1, duration: 850, useNativeDriver: false }),
-    ]).start();
-
-    setTimeout(() => {
+    Animated.sequence([
+      Animated.timing(orbOpacity, { toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
       Animated.parallel([
-        Animated.timing(panelOpacity, { toValue: 1, duration: 520, useNativeDriver: false }),
-        Animated.spring(panelLift, { toValue: 0, friction: 8, tension: 58, useNativeDriver: false }),
-      ]).start();
-    }, 300);
+        Animated.timing(logoOpacity, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+        Animated.spring(logoScale, { toValue: 1, friction: 7, tension: 55, useNativeDriver: false }),
+      ]),
+      Animated.parallel([
+        Animated.timing(taglineOpacity, { toValue: 1, duration: 500, useNativeDriver: false }),
+        Animated.spring(taglineLift, { toValue: 0, friction: 8, tension: 60, useNativeDriver: false }),
+      ]),
+    ]).start();
 
     const timer = setTimeout(() => {
       setCurrentScreen(hasSeenOnboarding ? 'Auth' : 'Onboarding');
-    }, 2400);
-
+    }, 2600);
     return () => clearTimeout(timer);
-  }, [hasSeenOnboarding, logoOpacity, logoScale, panelLift, panelOpacity, setCurrentScreen]);
+  }, [hasSeenOnboarding, logoOpacity, logoScale, orbOpacity, setCurrentScreen, taglineLift, taglineOpacity]);
 
   return (
-    <LinearGradient colors={Colors.gradientHero} style={styles.container}>
-      <View style={[styles.orb, styles.orbA]} />
-      <View style={[styles.orb, styles.orbB]} />
-      <View style={[styles.orb, styles.orbC]} />
+    <LinearGradient
+      colors={['#0A0618', '#130A28', '#1A0A35', '#0D0620']}
+      locations={[0, 0.3, 0.65, 1]}
+      style={styles.container}
+    >
+      {/* Ambient orbs */}
+      <Animated.View style={[styles.orbPurple, { opacity: orbOpacity }]} />
+      <Animated.View style={[styles.orbMagenta, { opacity: orbOpacity }]} />
+      <Animated.View style={[styles.orbBlue, { opacity: orbOpacity }]} />
 
-      <Animated.View style={[styles.logoShell, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
-        <LinearGradient colors={['rgba(255,255,255,0.14)', 'rgba(255,255,255,0.04)']} style={styles.logoFrame}>
-          <Image source={require('../../../assets/selix-logo-horizontal.png')} style={styles.wordmark} resizeMode="contain" />
-        </LinearGradient>
+      {/* Center content */}
+      <Animated.View style={[styles.center, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
+        <Image
+          source={require('../../../assets/selix-logo-horizontal.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
       </Animated.View>
 
-      <Animated.View style={[styles.panel, { opacity: panelOpacity, transform: [{ translateY: panelLift }] }]}>
-        <Text style={styles.eyebrow}>Real estate matching</Text>
-        <Text style={styles.tagline}>Une experience immobiliere premium et intelligente</Text>
-        <Text style={styles.subtagline}>Matching, suivi, CRM et validation dans une seule application mobile.</Text>
+      {/* Tagline at bottom */}
+      <Animated.View style={[styles.taglineWrap, { opacity: taglineOpacity, transform: [{ translateY: taglineLift }] }]}>
+        <Text style={styles.tagline}>Real estate matching</Text>
         <View style={styles.loaderRow}>
-          <View style={[styles.loaderDot, { backgroundColor: Colors.primary }]} />
-          <View style={[styles.loaderDot, { backgroundColor: Colors.accentMagenta }]} />
-          <View style={[styles.loaderDot, { backgroundColor: Colors.accentOrange }]} />
+          <View style={[styles.dot, styles.dotPurple]} />
+          <View style={[styles.dot, styles.dotMagenta]} />
+          <View style={[styles.dot, styles.dotBlue]} />
         </View>
       </Animated.View>
     </LinearGradient>
@@ -62,71 +70,69 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
   },
-  orb: {
+
+  orbPurple: {
     position: 'absolute',
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+    backgroundColor: 'rgba(92,16,216,0.22)',
+    top: -80,
+    right: -100,
   },
-  orbA: { width: 280, height: 280, top: -80, right: -70 },
-  orbB: { width: 220, height: 220, bottom: 110, left: -100, backgroundColor: 'rgba(227,22,140,0.1)' },
-  orbC: { width: 180, height: 180, bottom: -40, right: -20, backgroundColor: 'rgba(255,138,30,0.08)' },
-  logoShell: {
-    width: '100%',
+  orbMagenta: {
+    position: 'absolute',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(227,22,140,0.14)',
+    bottom: 80,
+    left: -90,
+  },
+  orbBlue: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(104,180,255,0.08)',
+    bottom: -40,
+    right: -30,
+  },
+
+  center: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  logoFrame: {
-    width: '100%',
-    maxWidth: 320,
-    borderRadius: 34,
-    paddingHorizontal: 24,
-    paddingVertical: 26,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    shadowColor: Colors.shadowDark,
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 10,
+  logo: {
+    width: 220,
+    height: 80,
   },
-  wordmark: { width: '100%', height: 72 },
-  panel: {
-    marginTop: 32,
+
+  taglineWrap: {
+    position: 'absolute',
+    bottom: 56,
     alignItems: 'center',
-    maxWidth: 320,
-  },
-  eyebrow: {
-    color: Colors.accentOrange,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
-    marginBottom: 10,
+    gap: 16,
   },
   tagline: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: Colors.white,
-    textAlign: 'center',
-    lineHeight: 34,
-    letterSpacing: -0.6,
-  },
-  subtagline: {
+    color: Colors.accentMagenta,
     fontSize: 14,
-    lineHeight: 22,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-    marginTop: 10,
+    fontWeight: '700',
+    letterSpacing: 2.2,
+    textTransform: 'uppercase',
   },
   loaderRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 24,
+    gap: 10,
+    alignItems: 'center',
   },
-  loaderDot: {
-    width: 8,
-    height: 8,
+  dot: {
+    width: 7,
+    height: 7,
     borderRadius: 4,
   },
+  dotPurple: { backgroundColor: Colors.primary },
+  dotMagenta: { backgroundColor: Colors.accentMagenta, width: 10, height: 10, borderRadius: 5 },
+  dotBlue: { backgroundColor: Colors.info },
 });

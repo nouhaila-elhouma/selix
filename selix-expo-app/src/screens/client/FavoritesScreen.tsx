@@ -13,10 +13,12 @@ export function FavoritesScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <LinearGradient colors={Colors.gradientPrimary} style={styles.header}>
+      <View style={styles.header}>
+        <LinearGradient colors={['#120A28', '#1A0A35', '#0D0620']} style={StyleSheet.absoluteFillObject} />
+        <View style={styles.orbA} />
         <Text style={styles.headerTitle}>Favoris</Text>
         <Text style={styles.headerSub}>{favorites.length} bien{favorites.length !== 1 ? 's' : ''} sauvegardé{favorites.length !== 1 ? 's' : ''}</Text>
-      </LinearGradient>
+      </View>
 
       {favorites.length === 0 ? (
         <View style={styles.empty}>
@@ -49,10 +51,25 @@ export function FavoritesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgMain },
-  header: { paddingTop: 20, paddingBottom: 24, paddingHorizontal: 24, alignItems: 'center' },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: Colors.white },
-  headerSub:   { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
-  empty:   { flex: 1, justifyContent: 'center' },
-  scroll:  { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 100 },
+  header: {
+    paddingTop: 20,
+    paddingBottom: 24,
+    paddingHorizontal: 22,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  orbA: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(227,22,140,0.12)',
+    top: -60,
+    right: -60,
+  },
+  headerTitle: { fontSize: 26, fontWeight: '900', color: Colors.white, letterSpacing: -0.4 },
+  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.62)', marginTop: 4, fontWeight: '500' },
+  empty: { flex: 1, justifyContent: 'center' },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 16, paddingBottom: 110 },
 });

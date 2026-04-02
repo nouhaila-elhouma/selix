@@ -229,10 +229,11 @@ export function VisitsScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={Colors.gradientPrimary} style={styles.header}>
+      <View style={styles.header}>
+        <LinearGradient colors={["#120A28", "#1A0A35", "#0D0620"]} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
         <Text style={styles.headerTitle}>Visites</Text>
         <Text style={styles.headerSub}>{upcoming.length} a venir · {past.length} passee{past.length !== 1 ? 's' : ''}</Text>
-      </LinearGradient>
+      </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         <SectionHeader title="A venir" />

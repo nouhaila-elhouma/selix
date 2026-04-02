@@ -257,7 +257,7 @@ export function VisitsScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={Colors.gradientHero} style={styles.header}>
+      <LinearGradient colors={["#0F0822", "#180A30", "#1C0B38", "#0D0620"]} locations={[0, 0.3, 0.65, 1]} style={styles.header}>
         <Text style={styles.headerTitle}>{t('visits.title')}</Text>
         <Text style={styles.headerSub}>
           {t('visits.subtitle', { upcoming: upcoming.length, past: past.length, suffix: past.length > 1 ? 's' : '' })}

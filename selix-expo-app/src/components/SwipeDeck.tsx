@@ -16,9 +16,9 @@ import { Colors } from '../constants/colors';
 import { Property } from '../types';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const CARD_W = SCREEN_W - 30;
-const CARD_H = CARD_W * 1.42;
-const SWIPE_THRESHOLD = SCREEN_W * 0.24;
+const CARD_W = SCREEN_W - 32;
+const CARD_H = CARD_W * 1.35;
+const SWIPE_THRESHOLD = SCREEN_W * 0.26;
 
 interface SwipeDeckProps {
   properties: Property[];
@@ -31,50 +31,41 @@ interface SwipeDeckProps {
 export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: SwipeDeckProps) {
   const [index, setIndex] = useState(0);
   const pan = useRef(new Animated.ValueXY()).current;
-  const scale = useRef(new Animated.Value(0.96)).current;
+  const scale = useRef(new Animated.Value(0.97)).current;
 
   const current = properties[index];
   const next = properties[index + 1];
 
   const rotate = pan.x.interpolate({
     inputRange: [-SCREEN_W, 0, SCREEN_W],
-    outputRange: ['-13deg', '0deg', '13deg'],
+    outputRange: ['-12deg', '0deg', '12deg'],
     extrapolate: 'clamp',
   });
 
+  // Like overlay (swiping right)
   const likeOpacity = pan.x.interpolate({
-    inputRange: [0, SWIPE_THRESHOLD],
+    inputRange: [20, SWIPE_THRESHOLD * 0.7],
     outputRange: [0, 1],
     extrapolate: 'clamp',
   });
 
+  // Pass overlay (swiping left)
   const passOpacity = pan.x.interpolate({
-    inputRange: [-SWIPE_THRESHOLD, 0],
+    inputRange: [-SWIPE_THRESHOLD * 0.7, -20],
     outputRange: [1, 0],
     extrapolate: 'clamp',
   });
 
-  const likeScale = pan.x.interpolate({
-    inputRange: [0, SWIPE_THRESHOLD],
-    outputRange: [0.72, 1.1],
-    extrapolate: 'clamp',
-  });
-
-  const passScale = pan.x.interpolate({
-    inputRange: [-SWIPE_THRESHOLD, 0],
-    outputRange: [1.1, 0.72],
-    extrapolate: 'clamp',
-  });
-
+  // Next card scale up as current is dragged
   const nextScale = pan.x.interpolate({
     inputRange: [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD],
-    outputRange: [1, 0.97, 1],
+    outputRange: [1, 0.96, 1],
     extrapolate: 'clamp',
   });
 
-  const nextLift = pan.x.interpolate({
+  const nextTranslateY = pan.x.interpolate({
     inputRange: [-SWIPE_THRESHOLD, 0, SWIPE_THRESHOLD],
-    outputRange: [0, 14, 0],
+    outputRange: [0, 12, 0],
     extrapolate: 'clamp',
   });
 
@@ -90,7 +81,7 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
       else {
         Animated.parallel([
           Animated.spring(pan, { toValue: { x: 0, y: 0 }, useNativeDriver: false, friction: 7 }),
-          Animated.spring(scale, { toValue: 0.96, useNativeDriver: false, friction: 7 }),
+          Animated.spring(scale, { toValue: 0.97, useNativeDriver: false, friction: 7 }),
         ]).start();
       }
     },
@@ -100,19 +91,14 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
     Haptics.impactAsync(
       dir === 'right' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light,
     ).catch(() => {});
-
-    const targetX = dir === 'right' ? SCREEN_W * 1.5 : -SCREEN_W * 1.5;
-    Animated.timing(pan, {
-      toValue: { x: targetX, y: 0 },
-      duration: 250,
-      useNativeDriver: false,
-    }).start(() => {
+    const targetX = dir === 'right' ? SCREEN_W * 1.6 : -SCREEN_W * 1.6;
+    Animated.timing(pan, { toValue: { x: targetX, y: 0 }, duration: 240, useNativeDriver: false }).start(() => {
       if (current) {
         if (dir === 'right') onLike(current);
         else onPass(current);
       }
       pan.setValue({ x: 0, y: 0 });
-      scale.setValue(0.96);
+      scale.setValue(0.97);
       const nextIndex = index + 1;
       if (nextIndex >= properties.length) onEmpty?.();
       setIndex(nextIndex);
@@ -123,14 +109,12 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
     return (
       <View style={styles.emptyContainer}>
         <LinearGradient colors={Colors.gradientCard} style={styles.emptyGradient}>
-          <View style={styles.emptyHeartShell}>
-            <LinearGradient colors={Colors.gradientCta} style={styles.emptyHeart}>
-              <Ionicons name="heart" size={34} color={Colors.white} />
-            </LinearGradient>
-          </View>
-          <Text style={styles.emptyTitle}>Tous vos matchs ont ete explores</Text>
+          <LinearGradient colors={Colors.gradientCta} style={styles.emptyHeartCircle}>
+            <Ionicons name="heart" size={38} color={Colors.white} />
+          </LinearGradient>
+          <Text style={styles.emptyTitle}>Tous vos matchs explorés</Text>
           <Text style={styles.emptySubtitle}>
-            Revenez bientot pour de nouvelles opportunites selectionnees selon votre profil.
+            Revenez bientôt pour de nouvelles opportunités sélectionnées selon votre profil.
           </Text>
         </LinearGradient>
       </View>
@@ -139,17 +123,13 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
 
   return (
     <View style={styles.container}>
+      {/* Next card (behind) */}
       {next ? (
         <Animated.View
           style={[
             styles.card,
             styles.nextCard,
-            {
-              transform: [
-                { scale: nextScale },
-                { translateY: nextLift },
-              ],
-            },
+            { transform: [{ scale: nextScale }, { translateY: nextTranslateY }] },
           ]}
         >
           <Image source={{ uri: next.image }} style={styles.cardImage} />
@@ -157,6 +137,7 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
         </Animated.View>
       ) : null}
 
+      {/* Current swipeable card */}
       <Animated.View
         {...panResponder.panHandlers}
         style={[
@@ -174,23 +155,36 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
         <Image source={{ uri: current.image }} style={styles.cardImage} />
         <LinearGradient colors={Colors.gradientDark} style={styles.cardOverlay} />
 
-        <Animated.View style={[styles.reactionBubble, styles.reactionLike, { opacity: likeOpacity, transform: [{ scale: likeScale }] }]}>
-          <LinearGradient colors={Colors.gradientCta} style={styles.reactionIcon}>
-            <Ionicons name="heart" size={36} color={Colors.white} />
-          </LinearGradient>
-          <Text style={styles.reactionLabel}>LIKE</Text>
-        </Animated.View>
-
-        <Animated.View style={[styles.reactionBubble, styles.reactionPass, { opacity: passOpacity, transform: [{ scale: passScale }] }]}>
-          <View style={styles.reactionIconGhost}>
-            <Ionicons name="close" size={34} color={Colors.white} />
+        {/* PASS overlay (left swipe) — red curved arrow style */}
+        <Animated.View style={[styles.swipeOverlay, styles.passOverlay, { opacity: passOpacity }]}>
+          <View style={styles.passArrowWrap}>
+            <Ionicons name="arrow-back-circle" size={72} color="rgba(255,80,80,0.92)" />
           </View>
-          <Text style={styles.reactionLabel}>PASS</Text>
+          <LinearGradient
+            colors={['rgba(220,40,40,0.28)', 'transparent']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={StyleSheet.absoluteFillObject}
+          />
         </Animated.View>
 
-        <View style={styles.badgeRow}>
+        {/* LIKE overlay (right swipe) — green curved arrow style */}
+        <Animated.View style={[styles.swipeOverlay, styles.likeOverlay, { opacity: likeOpacity }]}>
+          <View style={styles.likeArrowWrap}>
+            <Ionicons name="arrow-forward-circle" size={72} color="rgba(60,220,100,0.92)" />
+          </View>
+          <LinearGradient
+            colors={['transparent', 'rgba(30,200,80,0.28)']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+        </Animated.View>
+
+        {/* Top badges */}
+        <View style={styles.topRow}>
           <View style={styles.matchBadge}>
-            <Ionicons name="sparkles" size={12} color={Colors.primarySoft} />
+            <Ionicons name="sparkles" size={11} color={Colors.accentMagenta} />
             <Text style={styles.matchBadgeText}>{current.badge}</Text>
           </View>
           <View style={styles.scoreBubble}>
@@ -198,11 +192,13 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
           </View>
         </View>
 
-        <View style={styles.availabilityBadge}>
-          <View style={styles.availabilityDot} />
-          <Text style={styles.availabilityText}>{current.availability}</Text>
+        {/* Availability */}
+        <View style={styles.availBadge}>
+          <View style={styles.availDot} />
+          <Text style={styles.availText}>{current.availability}</Text>
         </View>
 
+        {/* Property info */}
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={2}>{current.title}</Text>
           <View style={styles.locationRow}>
@@ -210,59 +206,72 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
             <Text style={styles.locationText}>{current.district}, {current.city}</Text>
           </View>
           <View style={styles.specRow}>
-            {current.areaRaw > 0 ? (
+            {current.areaRaw > 0 && (
               <View style={styles.specPill}>
                 <Ionicons name="resize-outline" size={11} color={Colors.white} />
-                <Text style={styles.specPillText}>{current.area}</Text>
+                <Text style={styles.specText}>{current.area}</Text>
               </View>
-            ) : null}
-            {current.rooms > 0 ? (
+            )}
+            {current.rooms > 0 && (
               <View style={styles.specPill}>
                 <Ionicons name="bed-outline" size={11} color={Colors.white} />
-                <Text style={styles.specPillText}>{current.rooms} pieces</Text>
+                <Text style={styles.specText}>{current.rooms} pièces</Text>
               </View>
-            ) : null}
+            )}
             <View style={styles.specPill}>
               <Ionicons name="calendar-outline" size={11} color={Colors.white} />
-              <Text style={styles.specPillText}>{current.delivery}</Text>
+              <Text style={styles.specText}>{current.delivery}</Text>
             </View>
           </View>
           <Text style={styles.cardPrice}>{current.price}</Text>
-          <Text style={styles.cardMonthly}>{current.monthlyEstimate}</Text>
         </View>
+
+        {/* Drag hint dot */}
+        <View style={styles.dragDot} />
       </Animated.View>
 
+      {/* Action buttons */}
       <View style={styles.actions}>
-        <TouchableOpacity onPress={() => swipe('left')} style={[styles.actionBtn, styles.passBtn]}>
-          <Ionicons name="close" size={26} color={Colors.white} />
+        {/* PASS button — red circle X */}
+        <TouchableOpacity
+          onPress={() => swipe('left')}
+          activeOpacity={0.88}
+          style={[styles.actionBtn, styles.passBtn]}
+        >
+          <Ionicons name="close" size={28} color="#FF5050" />
         </TouchableOpacity>
 
+        {/* DETAIL / STAR button — blue circle */}
         <TouchableOpacity
           onPress={() => {
             Haptics.selectionAsync().catch(() => {});
             onOpen(current);
           }}
-          style={styles.detailBtn}
+          activeOpacity={0.88}
+          style={[styles.actionBtn, styles.starBtn]}
         >
-          <LinearGradient colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.06)']} style={styles.detailBtnGradient}>
-            <Ionicons name="information-circle-outline" size={22} color={Colors.white} />
-          </LinearGradient>
+          <Ionicons name="star" size={22} color="#5BADFF" />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => swipe('right')} style={[styles.actionBtn, styles.likeBtn]}>
-          <LinearGradient colors={Colors.gradientCta} style={styles.likeBtnGradient}>
-            <Ionicons name="heart" size={26} color={Colors.white} />
-          </LinearGradient>
+        {/* LIKE button — green circle heart */}
+        <TouchableOpacity
+          onPress={() => swipe('right')}
+          activeOpacity={0.88}
+          style={[styles.actionBtn, styles.likeBtn]}
+        >
+          <Ionicons name="heart" size={26} color="#3ADC6E" />
         </TouchableOpacity>
       </View>
 
+      {/* Counter */}
       <Text style={styles.counter}>{index + 1} / {properties.length}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: 'center', paddingTop: 10 },
+  container: { alignItems: 'center', paddingTop: 8 },
+
   card: {
     width: CARD_W,
     height: CARD_H,
@@ -271,21 +280,34 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: Colors.bgCard,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
-    shadowColor: Colors.shadowDark,
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.34,
-    shadowRadius: 32,
-    elevation: 12,
+    borderColor: 'rgba(255,255,255,0.09)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 28 },
+    shadowOpacity: 0.5,
+    shadowRadius: 36,
+    elevation: 16,
   },
   nextCard: {
     position: 'relative',
-    marginBottom: -CARD_H + 28,
-    opacity: 0.72,
+    marginBottom: -CARD_H + 24,
+    opacity: 0.68,
   },
   cardImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   cardOverlay: { position: 'absolute', inset: 0 },
-  badgeRow: {
+
+  // Swipe overlays
+  swipeOverlay: {
+    position: 'absolute',
+    inset: 0,
+    justifyContent: 'center',
+  },
+  passOverlay: { alignItems: 'flex-start' },
+  likeOverlay: { alignItems: 'flex-end' },
+  passArrowWrap: { marginLeft: 20 },
+  likeArrowWrap: { marginRight: 20 },
+
+  // Top badges
+  topRow: {
     position: 'absolute',
     top: 18,
     left: 18,
@@ -297,172 +319,164 @@ const styles = StyleSheet.create({
   matchBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(9,6,17,0.58)',
+    backgroundColor: 'rgba(9,6,17,0.62)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.1)',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 999,
+    gap: 6,
   },
-  matchBadgeText: { color: Colors.white, fontSize: 12, fontWeight: '800', marginLeft: 6 },
+  matchBadgeText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
   scoreBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.94)',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: 'rgba(255,255,255,0.95)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 6,
   },
   scoreBubbleText: { fontSize: 13, fontWeight: '900', color: Colors.primary },
-  availabilityBadge: {
+
+  // Availability badge
+  availBadge: {
     position: 'absolute',
-    top: 76,
+    top: 80,
     left: 18,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(9,6,17,0.52)',
+    backgroundColor: 'rgba(9,6,17,0.55)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 999,
   },
-  availabilityDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.success,
-    marginRight: 7,
-  },
-  availabilityText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
-  cardContent: { position: 'absolute', left: 20, right: 20, bottom: 22 },
-  cardTitle: { fontSize: 30, fontWeight: '900', color: Colors.white, letterSpacing: -0.6 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  locationText: { fontSize: 13, color: 'rgba(255,255,255,0.82)', marginLeft: 4 },
-  specRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14, marginBottom: 14 },
+  availDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.success, marginRight: 7 },
+  availText: { color: Colors.white, fontSize: 11, fontWeight: '700' },
+
+  // Card content (bottom)
+  cardContent: { position: 'absolute', left: 20, right: 20, bottom: 24 },
+  cardTitle: { fontSize: 28, fontWeight: '900', color: Colors.white, letterSpacing: -0.5, marginBottom: 8 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 4 },
+  locationText: { fontSize: 13, color: 'rgba(255,255,255,0.82)' },
+  specRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 14 },
   specPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.16)',
     paddingHorizontal: 11,
     paddingVertical: 7,
     borderRadius: 999,
+    gap: 5,
   },
-  specPillText: { fontSize: 11, color: Colors.white, fontWeight: '700', marginLeft: 5 },
-  cardPrice: { fontSize: 28, fontWeight: '900', color: Colors.white },
-  cardMonthly: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  specText: { fontSize: 11, color: Colors.white, fontWeight: '700' },
+  cardPrice: { fontSize: 26, fontWeight: '900', color: Colors.white },
 
-  reactionBubble: {
+  // Drag hint
+  dragDot: {
     position: 'absolute',
-    top: CARD_H * 0.32,
-    zIndex: 10,
-    alignItems: 'center',
-  },
-  reactionLike: { right: 24 },
-  reactionPass: { left: 24 },
-  reactionIcon: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#8E35FF',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.34,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  reactionIconGhost: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(9,6,17,0.55)',
+    bottom: CARD_H * 0.5,
+    left: '50%',
+    marginLeft: -6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.5)',
     borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(255,255,255,0.8)',
   },
-  reactionLabel: { marginTop: 10, color: Colors.white, fontSize: 12, fontWeight: '900', letterSpacing: 1.8 },
 
+  // Action buttons
   actions: {
-    marginTop: CARD_H + 22,
+    marginTop: CARD_H + 28,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 18,
+    gap: 20,
     width: '100%',
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
   },
   actionBtn: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.shadowDark,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 6,
+    borderWidth: 2.5,
   },
   passBtn: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderColor: '#FF5050',
+    backgroundColor: 'rgba(255,80,80,0.08)',
+    shadowColor: '#FF5050',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  starBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderColor: '#5BADFF',
+    backgroundColor: 'rgba(91,173,255,0.1)',
+    shadowColor: '#5BADFF',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 4,
   },
   likeBtn: {
-    overflow: 'hidden',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderColor: '#3ADC6E',
+    backgroundColor: 'rgba(58,220,110,0.1)',
+    shadowColor: '#3ADC6E',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  likeBtnGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  detailBtn: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  detailBtnGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
-  counter: { marginTop: 14, fontSize: 12, color: Colors.textMuted, fontWeight: '700' },
 
-  emptyContainer: { flex: 1, marginHorizontal: 6, borderRadius: 30, overflow: 'hidden' },
+  // Counter
+  counter: {
+    marginTop: 16,
+    fontSize: 12,
+    color: Colors.textMuted,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
+  // Empty state
+  emptyContainer: { flex: 1, marginHorizontal: 8, borderRadius: 30, overflow: 'hidden' },
   emptyGradient: {
     borderRadius: 30,
     paddingHorizontal: 28,
-    paddingVertical: 44,
+    paddingVertical: 48,
     alignItems: 'center',
-    justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
   },
-  emptyHeartShell: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+  emptyHeartCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-  },
-  emptyHeart: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: 22,
+    shadowColor: Colors.accentMagenta,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 10,
   },
   emptyTitle: { fontSize: 22, fontWeight: '900', color: Colors.textDark, textAlign: 'center', marginBottom: 10 },
   emptySubtitle: { fontSize: 14, lineHeight: 22, color: Colors.textSoft, textAlign: 'center' },

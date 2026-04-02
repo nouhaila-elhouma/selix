@@ -331,10 +331,11 @@ export function LeadsScreen() {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={Colors.gradientPrimary} style={styles.header}>
+      <View style={styles.header}>
+        <LinearGradient colors={["#120A28", "#1A0A35", "#0D0620"]} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }} />
         <Text style={styles.headerTitle}>{t('leads.title')}</Text>
         <Text style={styles.headerSub}>{leads.length} leads - {matchingCount} {t('leads.matchingSource').toLowerCase()}</Text>
-      </LinearGradient>
+      </View>
 
       <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>

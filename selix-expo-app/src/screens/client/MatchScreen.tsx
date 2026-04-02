@@ -84,30 +84,49 @@ export function MatchScreen() {
   return (
     <View style={styles.container}>
       <Animated.View style={{ opacity: headerFade, transform: [{ translateY: headerLift }] }}>
-        <LinearGradient colors={Colors.gradientPrimary} style={styles.header}>
+        <View style={styles.header}>
+          {/* Background gradient */}
+          <LinearGradient
+            colors={['#120A28', '#1A0A35', '#0D0620']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          {/* Ambient orbs */}
           <View style={[styles.deco, styles.decoA]} />
-          <Text style={styles.headerTitle}>{t('match.title')}</Text>
-          <Text style={styles.headerSub}>
-            {t('match.subtitle', { count: remaining.length, suffix: remaining.length > 1 ? 's' : '', availableSuffix: remaining.length > 1 ? 's' : '' })}
-          </Text>
-          <Animated.View style={[styles.counterChip, { transform: [{ scale: likedIds.length > 0 ? pulseScale : 1 }] }]}>
-            <Ionicons name="heart-circle" size={14} color={Colors.primary} />
-            <Text style={styles.counterText}>{t('match.likedCount', { count: likedIds.length })}</Text>
-          </Animated.View>
-        </LinearGradient>
+          <View style={[styles.deco, styles.decoB]} />
+
+          {/* Header content */}
+          <View style={styles.headerInner}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.headerTitle}>Swipe to like</Text>
+              <Text style={styles.headerSub}>Un commercial vas vous contacter</Text>
+            </View>
+            <Animated.View style={[
+              styles.counterChip,
+              { transform: [{ scale: likedIds.length > 0 ? pulseScale : 1 }] },
+            ]}>
+              <Ionicons name="heart" size={13} color="#3ADC6E" />
+              <Text style={styles.counterText}>{likedIds.length}</Text>
+            </Animated.View>
+          </View>
+        </View>
       </Animated.View>
 
       <View style={styles.switcher}>
         {[
-          { key: 'feed', label: t('match.feed') },
-          { key: 'matched', label: t('match.matched') },
-          { key: 'passed', label: t('match.passed') },
+          { key: 'feed', label: t('match.feed'), icon: 'layers-outline' },
+          { key: 'matched', label: t('match.matched'), icon: 'heart-outline' },
+          { key: 'passed', label: t('match.passed'), icon: 'play-forward-outline' },
         ].map((item) => (
           <TouchableOpacity
             key={item.key}
             onPress={() => setView(item.key as 'feed' | 'matched' | 'passed')}
             style={[styles.switchChip, view === item.key && styles.switchChipActive]}
           >
+            <Ionicons
+              name={item.icon as any}
+              size={14}
+              color={view === item.key ? Colors.white : Colors.textMuted}
+            />
             <Text style={[styles.switchChipText, view === item.key && styles.switchChipTextActive]}>{item.label}</Text>
           </TouchableOpacity>
         ))}
@@ -315,26 +334,69 @@ export function MatchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgMain },
   header: {
-    paddingTop: 20, paddingBottom: 24, paddingHorizontal: 24,
-    position: 'relative', overflow: 'hidden',
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  deco: { position: 'absolute', borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.06)' },
+  decoA: { width: 220, height: 220, top: -70, right: -70 },
+  decoB: { width: 140, height: 140, bottom: -40, left: -30, backgroundColor: 'rgba(227,22,140,0.1)' },
+  headerInner: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  deco: { position: 'absolute', borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.07)' },
-  decoA: { width: 200, height: 200, top: -60, right: -60 },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: Colors.white, letterSpacing: -0.3 },
-  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+  headerLeft: { flex: 1 },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: Colors.accentMagenta,
+    letterSpacing: -0.4,
+  },
+  headerSub: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.72)',
+    marginTop: 4,
+    fontWeight: '500',
+  },
   counterChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: Colors.white,
-    paddingHorizontal: 12, paddingVertical: 6,
-    borderRadius: 20, marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(58,220,110,0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(58,220,110,0.3)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
   },
-  counterText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
-  switcher: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
-  switchChip: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 14, backgroundColor: Colors.bgCard, borderWidth: 1, borderColor: Colors.borderSoft },
-  switchChipActive: { backgroundColor: Colors.lavenderUltra, borderColor: Colors.primary },
-  switchChipText: { fontSize: 13, fontWeight: '700', color: Colors.textSoft },
-  switchChipTextActive: { color: Colors.primary },
+  counterText: { fontSize: 14, fontWeight: '800', color: '#3ADC6E' },
+  switcher: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  switchChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 14,
+    backgroundColor: Colors.bgCard,
+    borderWidth: 1,
+    borderColor: Colors.borderSoft,
+  },
+  switchChipActive: {
+    backgroundColor: 'rgba(142,53,255,0.2)',
+    borderColor: Colors.primary,
+  },
+  switchChipText: { fontSize: 12, fontWeight: '700', color: Colors.textMuted },
+  switchChipTextActive: { color: Colors.white },
   deckContainer: { paddingTop: 16, paddingBottom: 60 },
   listContent: { paddingHorizontal: 16, paddingBottom: 120, gap: 12 },
   listCard: { flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: Colors.bgCard, borderRadius: 18, padding: 12, borderWidth: 1, borderColor: Colors.borderSoft },
