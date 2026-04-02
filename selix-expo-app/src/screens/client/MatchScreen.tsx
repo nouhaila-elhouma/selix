@@ -334,6 +334,7 @@ export function MatchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgMain },
   header: {
+<<<<<<< HEAD
     paddingTop: 20,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -397,6 +398,30 @@ const styles = StyleSheet.create({
   },
   switchChipText: { fontSize: 12, fontWeight: '700', color: Colors.textMuted },
   switchChipTextActive: { color: Colors.white },
+=======
+    paddingTop: 22, paddingBottom: 26, paddingHorizontal: 24,
+    position: 'relative', overflow: 'hidden',
+    alignItems: 'flex-start',
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+  },
+  deco: { position: 'absolute', borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.07)' },
+  decoA: { width: 200, height: 200, top: -60, right: -60 },
+  headerTitle: { fontSize: 30, fontWeight: '300', color: Colors.white, letterSpacing: -0.5 },
+  headerSub: { fontSize: 14, color: 'rgba(255,255,255,0.74)', marginTop: 6, maxWidth: 280, lineHeight: 20 },
+  counterChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 999, marginTop: 14,
+  },
+  counterText: { fontSize: 13, fontWeight: '700', color: Colors.primary },
+  switcher: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingVertical: 16 },
+  switchChip: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.04)', borderWidth: 1, borderColor: Colors.borderSoft },
+  switchChipActive: { backgroundColor: Colors.lavenderUltra, borderColor: Colors.accentMagenta },
+  switchChipText: { fontSize: 13, fontWeight: '700', color: Colors.textSoft },
+  switchChipTextActive: { color: Colors.primary },
+>>>>>>> 23a070d (Apply new design system across app)
   deckContainer: { paddingTop: 16, paddingBottom: 60 },
   listContent: { paddingHorizontal: 16, paddingBottom: 120, gap: 12 },
   listCard: { flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: Colors.bgCard, borderRadius: 18, padding: 12, borderWidth: 1, borderColor: Colors.borderSoft },

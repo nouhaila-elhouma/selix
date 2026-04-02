@@ -164,6 +164,7 @@ export function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
+<<<<<<< HEAD
   container: { flex: 1, backgroundColor: '#0A0618' },
 
   // Hero
@@ -209,12 +210,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     backgroundColor: 'rgba(255,255,255,0.14)',
+=======
+  container: { flex: 1, backgroundColor: Colors.bgMain },
+  hero: { height: H * 0.62, position: 'relative', overflow: 'hidden' },
+  heroImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  heroOverlay: { position: 'absolute', inset: 0 },
+  heroShade: { position: 'absolute', inset: 0 },
+  orb: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.06)' },
+  orbA: { width: 280, height: 280, top: -90, right: -110, backgroundColor: 'rgba(160,62,255,0.14)' },
+  orbB: { width: 180, height: 180, bottom: 58, left: -62, backgroundColor: 'rgba(255,79,216,0.12)' },
+  heroContent: { position: 'absolute', left: 22, right: 22, bottom: 28 },
+  badge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.09)',
+>>>>>>> 23a070d (Apply new design system across app)
     borderRadius: 999,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
+<<<<<<< HEAD
   aiPillText: { color: Colors.white, fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
 
   heroTitle: {
@@ -235,12 +253,20 @@ const styles = StyleSheet.create({
 
   pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   pill: {
+=======
+  badgeText: { color: Colors.white, fontSize: 11, fontWeight: '800', marginLeft: 6, letterSpacing: 0.5 },
+  heroTitle: { fontSize: 34, fontWeight: '300', color: Colors.white, lineHeight: 38, letterSpacing: -0.9, maxWidth: 320 },
+  heroSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.82)', lineHeight: 22, marginTop: 10, maxWidth: 330 },
+  highlightRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  highlightPill: {
+>>>>>>> 23a070d (Apply new design system across app)
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
+<<<<<<< HEAD
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
@@ -250,10 +276,21 @@ const styles = StyleSheet.create({
   ctaGroup: { gap: 10 },
   primaryBtnWrap: { borderRadius: 22, overflow: 'hidden' },
   primaryBtn: {
+=======
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  highlightText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
+  ctaStack: { gap: 10, marginTop: 16 },
+  primaryButton: { borderRadius: 24, overflow: 'hidden' },
+  primaryButtonInner: {
+>>>>>>> 23a070d (Apply new design system across app)
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+<<<<<<< HEAD
     paddingVertical: 16,
     shadowColor: Colors.accentMagenta,
     shadowOffset: { width: 0, height: 14 },
@@ -267,10 +304,26 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.22)',
+=======
+    paddingVertical: 17,
+    shadowColor: '#FF4FD8',
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.32,
+    shadowRadius: 24,
+    elevation: 12,
+  },
+  primaryButtonText: { color: Colors.white, fontSize: 15, fontWeight: '900' },
+  secondaryButton: {
+    height: 52,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+>>>>>>> 23a070d (Apply new design system across app)
     backgroundColor: 'rgba(13,10,24,0.38)',
     alignItems: 'center',
     justifyContent: 'center',
   },
+<<<<<<< HEAD
   secondaryBtnText: { color: Colors.white, fontSize: 14, fontWeight: '800' },
 
   // Panel
@@ -286,6 +339,15 @@ const styles = StyleSheet.create({
     padding: 18,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.07)',
+=======
+  secondaryButtonText: { color: Colors.white, fontSize: 14, fontWeight: '800' },
+  panel: { flex: 1, marginTop: -24, paddingHorizontal: 20, paddingBottom: 20 },
+  panelCard: {
+    borderRadius: 34,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+>>>>>>> 23a070d (Apply new design system across app)
   },
   panelHeader: {
     flexDirection: 'row',

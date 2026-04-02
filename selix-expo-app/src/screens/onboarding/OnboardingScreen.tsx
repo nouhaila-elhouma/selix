@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+<<<<<<< HEAD
 import {
   Animated,
   Dimensions,
@@ -9,6 +10,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+=======
+import { Animated, Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+>>>>>>> 23a070d (Apply new design system across app)
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
@@ -26,6 +30,7 @@ const PROPERTY_IMAGES = [
 
 const SLIDES = [
   {
+<<<<<<< HEAD
     imageUri: PROPERTY_IMAGES[0],
     propertyName: 'Linaz Living',
     standing: 'HAUT STANDING',
@@ -51,6 +56,24 @@ const SLIDES = [
     title: 'Un commercial\ndédié',
     accent: 'vous contacte en 24h',
     subtitle: 'Dès que vous likez un projet, le bon conseiller prend contact directement avec vous.',
+=======
+    eyebrow: 'Real estate matching',
+    title: 'Une experience immobiliere premium et intelligente',
+    subtitle: 'Matching, suivi, CRM et validation dans une seule application mobile.',
+    image: require('../../../assets/selix-splash.png'),
+  },
+  {
+    eyebrow: 'Real estate matching',
+    title: 'Un parcours immobilier simple et fluide',
+    subtitle: 'Selix cadre le besoin, filtre les bons projets et vous guide jusqu au closing.',
+    image: require('../../../assets/selix-splash.png'),
+  },
+  {
+    eyebrow: 'Swipe to like',
+    title: 'Un commercial vas vous contacter',
+    subtitle: 'Swipez, likez, matchez et ouvrez directement le chat commercial approprie.',
+    image: require('../../../assets/selix-splash.png'),
+>>>>>>> 23a070d (Apply new design system across app)
   },
 ];
 
@@ -68,6 +91,7 @@ export function OnboardingScreen() {
 
   const next = () => {
     if (step < SLIDES.length - 1) {
+<<<<<<< HEAD
       // Animate out
       Animated.parallel([
         Animated.timing(contentFade, { toValue: 0, duration: 160, useNativeDriver: false }),
@@ -85,9 +109,20 @@ export function OnboardingScreen() {
       });
     } else {
       finish();
+=======
+      Animated.spring(slideX, {
+        toValue: -(step + 1) * W,
+        useNativeDriver: false,
+        friction: 9,
+        tension: 64,
+      }).start();
+      setStep(step + 1);
+      return;
+>>>>>>> 23a070d (Apply new design system across app)
     }
   };
 
+<<<<<<< HEAD
   const current = SLIDES[step];
 
   return (
@@ -175,16 +210,98 @@ export function OnboardingScreen() {
               size={22}
               color={Colors.white}
             />
+=======
+  return (
+    <View style={styles.screen}>
+      <Animated.View style={[styles.slider, { transform: [{ translateX: slideX }] }]}>
+        {SLIDES.map((slide, index) => (
+          <LinearGradient key={slide.title} colors={Colors.gradientHero} style={styles.slide}>
+            <View style={[styles.orb, styles.orbA]} />
+            <View style={[styles.orb, styles.orbB]} />
+
+            <View style={styles.topBar}>
+              <BrandWordmark size="md" />
+              {index === 0 ? (
+                <TouchableOpacity style={styles.gridBtn} activeOpacity={0.9} onPress={finish}>
+                  <Ionicons name="grid" size={18} color={Colors.white} />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.gridBtn} activeOpacity={0.9} onPress={finish}>
+                  <Text style={styles.skipText}>Passer</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <Text style={styles.eyebrow}>{slide.eyebrow}</Text>
+
+            <View style={styles.visualBlock}>
+              <View style={[styles.backPlate, index === 1 ? styles.backPlateTilt : index === 2 ? styles.backPlateMatch : null]} />
+              <Image source={slide.image} style={styles.heroImage} />
+              <LinearGradient colors={Colors.gradientDark} style={styles.imageOverlay} />
+
+              {index === 2 ? (
+                <>
+                  <View style={[styles.sideArrow, styles.sideArrowLeft]}>
+                    <Ionicons name="arrow-back" size={54} color="rgba(255,91,115,0.9)" />
+                  </View>
+                  <View style={[styles.sideArrow, styles.sideArrowRight]}>
+                    <Ionicons name="arrow-forward" size={54} color="rgba(76,255,143,0.9)" />
+                  </View>
+                </>
+              ) : null}
+
+              <View style={styles.imageCaption}>
+                <Text style={styles.captionTitle}>Linaz Living</Text>
+                <Text style={styles.captionBadge}>HAUT STANDING</Text>
+                <Text style={styles.captionMeta}>CFC 2 - disponible fin 2026</Text>
+              </View>
+            </View>
+
+            <View style={styles.copyBlock}>
+              <Text style={styles.title}>{slide.title}</Text>
+              <Text style={styles.subtitle}>{slide.subtitle}</Text>
+            </View>
+
+            <View style={styles.footer}>
+              <View style={styles.progressRow}>
+                {SLIDES.map((_, dotIndex) => (
+                  <View
+                    key={String(dotIndex)}
+                    style={[styles.progressDot, dotIndex === step && styles.progressDotActive]}
+                  />
+                ))}
+              </View>
+
+              {index === 2 ? (
+                <View style={styles.actionRow}>
+                  <TouchableOpacity style={[styles.roundAction, styles.rejectAction]} activeOpacity={0.9}>
+                    <Ionicons name="close" size={28} color={Colors.accentRed} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.roundAction, styles.infoAction]} activeOpacity={0.9}>
+                    <Ionicons name="star" size={24} color={Colors.accentBlue} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.roundAction, styles.likeAction]} activeOpacity={0.9}>
+                    <Ionicons name="heart" size={26} color={Colors.accentGreen} />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              <TouchableOpacity onPress={next} activeOpacity={0.92} style={styles.nextBtn}>
+                <Ionicons name={step < SLIDES.length - 1 ? 'chevron-forward' : 'checkmark'} size={30} color={Colors.accentMagenta} />
+              </TouchableOpacity>
+            </View>
+>>>>>>> 23a070d (Apply new design system across app)
           </LinearGradient>
-        </TouchableOpacity>
-      </View>
-    </LinearGradient>
+        ))}
+      </Animated.View>
+    </View>
   );
 }
 
 const CARD_H = H * 0.38;
 
 const styles = StyleSheet.create({
+<<<<<<< HEAD
   container: {
     flex: 1,
     paddingTop: 52,
@@ -386,6 +503,152 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
+=======
+  screen: { flex: 1, backgroundColor: '#201C1C', overflow: 'hidden' },
+  slider: { flexDirection: 'row', width: W * SLIDES.length, flex: 1 },
+  slide: {
+    width: W,
+    paddingTop: 54,
+    paddingHorizontal: 26,
+    paddingBottom: 28,
+  },
+  orb: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.05)' },
+  orbA: { width: 250, height: 250, top: 90, right: -120, backgroundColor: 'rgba(160,62,255,0.12)' },
+  orbB: { width: 180, height: 180, bottom: 200, left: -70, backgroundColor: 'rgba(255,79,216,0.12)' },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 32,
+  },
+  gridBtn: {
+    minWidth: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  skipText: { color: Colors.textSoft, fontSize: 12, fontWeight: '800' },
+  eyebrow: {
+    color: Colors.accentMagenta,
+    fontSize: 18,
+    lineHeight: 24,
+    marginBottom: 24,
+    letterSpacing: 0.6,
+  },
+  visualBlock: {
+    height: 420,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  backPlate: {
+    position: 'absolute',
+    width: '78%',
+    height: '78%',
+    borderRadius: 42,
+    backgroundColor: 'rgba(232,225,238,0.85)',
+    transform: [{ rotate: '-8deg' }],
+  },
+  backPlateTilt: {
+    backgroundColor: 'rgba(238,232,242,0.82)',
+    transform: [{ rotate: '8deg' }],
+  },
+  backPlateMatch: {
+    backgroundColor: 'rgba(104,43,162,0.28)',
+    transform: [{ rotate: '0deg' }],
+  },
+  heroImage: {
+    width: '74%',
+    height: '82%',
+    borderRadius: 42,
+    resizeMode: 'cover',
+  },
+  imageOverlay: {
+    position: 'absolute',
+    width: '74%',
+    height: '82%',
+    borderRadius: 42,
+  },
+  sideArrow: {
+    position: 'absolute',
+    top: '36%',
+  },
+  sideArrowLeft: { left: -2 },
+  sideArrowRight: { right: -2 },
+  imageCaption: {
+    position: 'absolute',
+    bottom: 58,
+    width: '66%',
+    alignSelf: 'center',
+    paddingHorizontal: 18,
+  },
+  captionTitle: { color: Colors.white, fontSize: 26, fontWeight: '300' },
+  captionBadge: { color: Colors.accentOrange, fontSize: 13, fontWeight: '800', letterSpacing: 1.2, marginTop: 2 },
+  captionMeta: { color: 'rgba(255,255,255,0.82)', fontSize: 12, marginTop: 4 },
+  copyBlock: { minHeight: 138 },
+  title: {
+    color: Colors.white,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '300',
+    letterSpacing: -0.4,
+    marginBottom: 10,
+  },
+  subtitle: {
+    color: Colors.textSoft,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  footer: {
+    marginTop: 'auto',
+    minHeight: 98,
+    justifyContent: 'flex-end',
+  },
+  progressRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+  },
+  progressDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(160,62,255,0.45)',
+  },
+  progressDotActive: {
+    width: 24,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 20,
+    marginBottom: 16,
+  },
+  roundAction: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    backgroundColor: 'rgba(17,6,30,0.54)',
+  },
+  rejectAction: { borderColor: 'rgba(255,91,115,0.9)' },
+  infoAction: { borderColor: 'rgba(36,168,255,0.9)' },
+  likeAction: { borderColor: 'rgba(76,255,143,0.9)' },
+  nextBtn: {
+    position: 'absolute',
+    right: 4,
+    bottom: 0,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+>>>>>>> 23a070d (Apply new design system across app)
     alignItems: 'center',
     justifyContent: 'center',
   },

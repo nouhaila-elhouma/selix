@@ -43,6 +43,7 @@ export function SplashScreen() {
       <Animated.View style={[styles.orbMagenta, { opacity: orbOpacity }]} />
       <Animated.View style={[styles.orbBlue, { opacity: orbOpacity }]} />
 
+<<<<<<< HEAD
       {/* Center content */}
       <Animated.View style={[styles.center, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
         <Image
@@ -50,6 +51,12 @@ export function SplashScreen() {
           style={styles.logo}
           resizeMode="contain"
         />
+=======
+      <Animated.View style={[styles.logoShell, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
+        <LinearGradient colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)']} style={styles.logoFrame}>
+          <Image source={require('../../../assets/selix-logo-horizontal.png')} style={styles.wordmark} resizeMode="contain" />
+        </LinearGradient>
+>>>>>>> 23a070d (Apply new design system across app)
       </Animated.View>
 
       {/* Tagline at bottom */}
@@ -81,6 +88,7 @@ const styles = StyleSheet.create({
     top: -80,
     right: -100,
   },
+<<<<<<< HEAD
   orbMagenta: {
     position: 'absolute',
     width: 260,
@@ -101,19 +109,54 @@ const styles = StyleSheet.create({
   },
 
   center: {
+=======
+  orbA: { width: 320, height: 320, top: -110, right: -90, backgroundColor: 'rgba(160,62,255,0.12)' },
+  orbB: { width: 260, height: 260, bottom: 90, left: -110, backgroundColor: 'rgba(255,79,216,0.12)' },
+  orbC: { width: 190, height: 190, bottom: -30, right: -30, backgroundColor: 'rgba(255,184,77,0.08)' },
+  logoShell: {
+    width: '100%',
+>>>>>>> 23a070d (Apply new design system across app)
     alignItems: 'center',
     justifyContent: 'center',
   },
+<<<<<<< HEAD
   logo: {
     width: 220,
     height: 80,
+=======
+  logoFrame: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 42,
+    paddingHorizontal: 24,
+    paddingVertical: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    shadowColor: Colors.shadowDark,
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.34,
+    shadowRadius: 28,
+    elevation: 12,
+>>>>>>> 23a070d (Apply new design system across app)
   },
 
   taglineWrap: {
     position: 'absolute',
     bottom: 56,
     alignItems: 'center',
+<<<<<<< HEAD
     gap: 16,
+=======
+    maxWidth: 320,
+  },
+  eyebrow: {
+    color: Colors.accentMagenta,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+>>>>>>> 23a070d (Apply new design system across app)
   },
   tagline: {
     color: Colors.accentMagenta,
