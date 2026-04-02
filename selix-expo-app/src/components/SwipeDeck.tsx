@@ -16,15 +16,9 @@ import { Colors } from '../constants/colors';
 import { Property } from '../types';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-<<<<<<< HEAD
 const CARD_W = SCREEN_W - 32;
 const CARD_H = CARD_W * 1.35;
 const SWIPE_THRESHOLD = SCREEN_W * 0.26;
-=======
-const CARD_W = SCREEN_W - 42;
-const CARD_H = CARD_W * 1.5;
-const SWIPE_THRESHOLD = SCREEN_W * 0.24;
->>>>>>> 23a070d (Apply new design system across app)
 
 interface SwipeDeckProps {
   properties: Property[];
@@ -239,7 +233,6 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
 
       {/* Action buttons */}
       <View style={styles.actions}>
-<<<<<<< HEAD
         {/* PASS button — red circle X */}
         <TouchableOpacity
           onPress={() => swipe('left')}
@@ -247,10 +240,6 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
           style={[styles.actionBtn, styles.passBtn]}
         >
           <Ionicons name="close" size={28} color="#FF5050" />
-=======
-        <TouchableOpacity onPress={() => swipe('left')} style={[styles.actionBtn, styles.passBtn]}>
-          <Ionicons name="close" size={28} color={Colors.accentRed} />
->>>>>>> 23a070d (Apply new design system across app)
         </TouchableOpacity>
 
         {/* DETAIL / STAR button — blue circle */}
@@ -262,13 +251,7 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
           activeOpacity={0.88}
           style={[styles.actionBtn, styles.starBtn]}
         >
-<<<<<<< HEAD
           <Ionicons name="star" size={22} color="#5BADFF" />
-=======
-          <LinearGradient colors={['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.06)']} style={styles.detailBtnGradient}>
-            <Ionicons name="star" size={22} color={Colors.accentBlue} />
-          </LinearGradient>
->>>>>>> 23a070d (Apply new design system across app)
         </TouchableOpacity>
 
         {/* LIKE button — green circle heart */}
@@ -288,12 +271,8 @@ export function SwipeDeck({ properties, onLike, onPass, onOpen, onEmpty }: Swipe
 }
 
 const styles = StyleSheet.create({
-<<<<<<< HEAD
   container: { alignItems: 'center', paddingTop: 8 },
 
-=======
-  container: { alignItems: 'center', paddingTop: 6 },
->>>>>>> 23a070d (Apply new design system across app)
   card: {
     width: CARD_W,
     height: CARD_H,
@@ -302,7 +281,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     backgroundColor: Colors.bgCard,
     borderWidth: 1,
-<<<<<<< HEAD
     borderColor: 'rgba(255,255,255,0.09)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 28 },
@@ -314,29 +292,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginBottom: -CARD_H + 24,
     opacity: 0.68,
-=======
-    borderColor: 'rgba(255,255,255,0.08)',
-    shadowColor: Colors.shadowDark,
-    shadowOffset: { width: 0, height: 26 },
-    shadowOpacity: 0.36,
-    shadowRadius: 34,
-    elevation: 14,
-  },
-  nextCard: {
-    position: 'relative',
-    marginBottom: -CARD_H + 28,
-    opacity: 0.76,
-  },
-  nextCardPlate: {
-    position: 'absolute',
-    width: '82%',
-    height: '82%',
-    top: '8%',
-    left: '9%',
-    borderRadius: 42,
-    backgroundColor: 'rgba(227,220,239,0.72)',
-    transform: [{ rotate: '-7deg' }],
->>>>>>> 23a070d (Apply new design system across app)
   },
   cardImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   cardOverlay: { position: 'absolute', inset: 0 },
@@ -378,11 +333,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-<<<<<<< HEAD
     backgroundColor: 'rgba(255,255,255,0.95)',
-=======
-    backgroundColor: 'rgba(255,255,255,0.94)',
->>>>>>> 23a070d (Apply new design system across app)
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
@@ -409,7 +360,6 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 999,
   },
-<<<<<<< HEAD
   availDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.success, marginRight: 7 },
   availText: { color: Colors.white, fontSize: 11, fontWeight: '700' },
 
@@ -419,21 +369,6 @@ const styles = StyleSheet.create({
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 4 },
   locationText: { fontSize: 13, color: 'rgba(255,255,255,0.82)' },
   specRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginBottom: 14 },
-=======
-  availabilityDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: Colors.success,
-    marginRight: 7,
-  },
-  availabilityText: { color: Colors.white, fontSize: 11, fontWeight: '800' },
-  cardContent: { position: 'absolute', left: 20, right: 20, bottom: 22 },
-  cardTitle: { fontSize: 28, fontWeight: '300', color: Colors.white, letterSpacing: -0.6 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  locationText: { fontSize: 13, color: 'rgba(255,255,255,0.82)', marginLeft: 4 },
-  specRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14, marginBottom: 14 },
->>>>>>> 23a070d (Apply new design system across app)
   specPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -449,7 +384,6 @@ const styles = StyleSheet.create({
   // Drag hint
   dragDot: {
     position: 'absolute',
-<<<<<<< HEAD
     bottom: CARD_H * 0.5,
     left: '50%',
     marginLeft: -6,
@@ -457,44 +391,13 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: 'rgba(255,255,255,0.5)',
-=======
-    top: CARD_H * 0.32,
-    zIndex: 10,
-    alignItems: 'center',
-  },
-  reactionLike: { right: 24 },
-  reactionPass: { left: 24 },
-  reactionIcon: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#A03EFF',
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.34,
-    shadowRadius: 24,
-    elevation: 8,
-  },
-  reactionIconGhost: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(9,6,17,0.55)',
->>>>>>> 23a070d (Apply new design system across app)
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.8)',
   },
 
   // Action buttons
   actions: {
-<<<<<<< HEAD
     marginTop: CARD_H + 28,
-=======
-    marginTop: CARD_H + 24,
->>>>>>> 23a070d (Apply new design system across app)
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -503,18 +406,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
   },
   actionBtn: {
-<<<<<<< HEAD
-=======
-    width: 70,
-    height: 70,
-    borderRadius: 35,
->>>>>>> 23a070d (Apply new design system across app)
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2.5,
   },
   passBtn: {
-<<<<<<< HEAD
     width: 64,
     height: 64,
     borderRadius: 32,
@@ -550,40 +446,6 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 6,
   },
-=======
-    backgroundColor: 'rgba(255,91,115,0.08)',
-    borderWidth: 2,
-    borderColor: 'rgba(255,91,115,0.85)',
-  },
-  likeBtn: {
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: 'rgba(76,255,143,0.9)',
-  },
-  likeBtnGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(76,255,143,0.12)',
-  },
-  detailBtn: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  detailBtnGradient: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(36,168,255,0.08)',
-  },
-  counter: { marginTop: 14, fontSize: 12, color: Colors.textMuted, fontWeight: '700' },
->>>>>>> 23a070d (Apply new design system across app)
 
   // Counter
   counter: {

@@ -87,7 +87,6 @@ export function TabBar({ tabs, activeKey, onPress }: TabBarProps) {
 
 const styles = StyleSheet.create({
   wrap: {
-<<<<<<< HEAD
     paddingHorizontal: 12,
     backgroundColor: 'transparent',
   },
@@ -125,41 +124,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingTop: 10,
     paddingBottom: Platform.OS === 'ios' ? 8 : 6,
-=======
-    paddingHorizontal: 16,
-    backgroundColor: 'transparent',
-  },
-  container: {
-    borderRadius: 28,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    shadowColor: Colors.shadowDark,
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.36,
-    shadowRadius: 28,
-    elevation: 20,
-  },
-  topGlow: {
-    position: 'absolute',
-    top: -26,
-    left: 26,
-    right: 26,
-    height: 72,
-    borderRadius: 72,
-    backgroundColor: 'rgba(255,79,216,0.12)',
-  },
-  inner: {
-    flexDirection: 'row',
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 10,
->>>>>>> 23a070d (Apply new design system across app)
   },
   tab: {
     flex: 1,
     alignItems: 'center',
-<<<<<<< HEAD
     gap: 3,
   },
   tabInner: {
@@ -186,26 +154,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-=======
-    gap: 6,
-  },
-  iconWrapper: {
-    width: 50,
-    height: 42,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-  },
-  iconWrapperActive: {
-    shadowColor: '#A03EFF',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.38,
-    shadowRadius: 18,
-    elevation: 8,
->>>>>>> 23a070d (Apply new design system across app)
   },
   label: {
     fontSize: 9,

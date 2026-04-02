@@ -244,7 +244,6 @@ export function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgMain },
-<<<<<<< HEAD
 
   // Header
   header: {
@@ -344,40 +343,12 @@ const styles = StyleSheet.create({
   dossierTitle: { fontSize: 14, fontWeight: '800', color: Colors.textDark, marginBottom: 4 },
   tempBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginBottom: 5 },
   tempText: { fontSize: 11, fontWeight: '700' },
-=======
-  header: { paddingTop: 14, paddingBottom: 20, paddingHorizontal: 18, position: 'relative', overflow: 'hidden', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  deco: { position: 'absolute', borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.07)' },
-  decoA: { width: 280, height: 280, top: -100, right: -90, backgroundColor: 'rgba(160,62,255,0.14)' },
-  decoB: { width: 170, height: 170, bottom: -54, left: -56, backgroundColor: 'rgba(255,79,216,0.12)' },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  greeting: { fontSize: 11, color: 'rgba(255,255,255,0.75)', fontWeight: '600' },
-  userName: { fontSize: 28, fontWeight: '300', color: Colors.white, letterSpacing: -0.5 },
-  bellBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  bellBadge: { position: 'absolute', top: 6, right: 6, width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.danger, borderWidth: 1.5, borderColor: Colors.white },
-  quickStats: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  quickStat: { flex: 1, alignItems: 'center' },
-  quickStatValue: { fontSize: 20, fontWeight: '800', color: Colors.white },
-  quickStatLabel: { fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 3, fontWeight: '600' },
-  quickStatDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 8 },
-  body: { flex: 1, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 68, justifyContent: 'space-between' },
-  sectionBlock: { marginBottom: 4 },
-  dossierCard: { backgroundColor: Colors.bgCard, borderRadius: 24, padding: 14, borderWidth: 1, borderColor: Colors.borderSoft, shadowColor: Colors.shadowDark, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.16, shadowRadius: 18, elevation: 5 },
-  dossierTop: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  scoreBox: { alignItems: 'center' },
-  scoreRingLarge: { width: 54, height: 54, borderRadius: 27, borderWidth: 4, alignItems: 'center', justifyContent: 'center' },
-  scoreValue: { fontSize: 16, fontWeight: '900' },
-  scoreMax: { fontSize: 10, color: Colors.textMuted, fontWeight: '600' },
-  dossierTitle: { fontSize: 13, fontWeight: '700', color: Colors.textDark, marginBottom: 3 },
-  tempBadge: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, marginBottom: 6 },
-  tempBadgeText: { fontSize: 11, fontWeight: '700' },
->>>>>>> 23a070d (Apply new design system across app)
   dossierSub: { fontSize: 11, color: Colors.textSoft },
 
   // Pipeline
   pipelineLabel: { fontSize: 10, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
   pipeline: { flexDirection: 'row', alignItems: 'center' },
   pipelineStep: { alignItems: 'center', gap: 4 },
-<<<<<<< HEAD
   pipeDot: {
     width: 18, height: 18, borderRadius: 9,
     backgroundColor: Colors.borderSoft,
@@ -438,21 +409,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-=======
-  pipelineDot: { width: 18, height: 18, borderRadius: 9, backgroundColor: Colors.borderSoft, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: Colors.border },
-  pipelineDotDone: { backgroundColor: Colors.success, borderColor: Colors.success },
-  pipelineDotCurrent: { backgroundColor: Colors.primary, borderColor: Colors.primary, width: 22, height: 22, borderRadius: 11 },
-  pipelineLabel: { fontSize: 7, color: Colors.textMuted, fontWeight: '500', textAlign: 'center', maxWidth: 38 },
-  pipelineLabelActive: { color: Colors.primary, fontWeight: '700', fontSize: 9 },
-  pipelineLabelDone: { color: Colors.success, fontWeight: '600' },
-  pipelineLine: { flex: 1, height: 2, backgroundColor: Colors.borderSoft, marginBottom: 14 },
-  pipelineLineDone: { backgroundColor: Colors.success },
-  featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  featureCard: { width: '100%', minHeight: 86, backgroundColor: Colors.bgCard, borderRadius: 22, padding: 12, borderWidth: 1, borderColor: Colors.borderSoft, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  featureIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  featureLabel: { fontSize: 11, fontWeight: '700', color: Colors.textDark, textAlign: 'center' },
-  featureCount: { fontSize: 16, fontWeight: '800' },
-  supportFab: { position: 'absolute', right: 16, bottom: 16, borderRadius: 999, shadowColor: Colors.shadowDark, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8 },
-  supportFabInner: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
->>>>>>> 23a070d (Apply new design system across app)
 });

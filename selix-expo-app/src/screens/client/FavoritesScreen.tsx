@@ -51,7 +51,6 @@ export function FavoritesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgMain },
-<<<<<<< HEAD
   header: {
     paddingTop: 20,
     paddingBottom: 24,
@@ -73,12 +72,4 @@ const styles = StyleSheet.create({
   empty: { flex: 1, justifyContent: 'center' },
   scroll: { flex: 1 },
   scrollContent: { padding: 16, paddingBottom: 110 },
-=======
-  header: { paddingTop: 22, paddingBottom: 28, paddingHorizontal: 24, alignItems: 'flex-start', borderBottomLeftRadius: 28, borderBottomRightRadius: 28 },
-  headerTitle: { fontSize: 30, fontWeight: '300', color: Colors.white },
-  headerSub:   { fontSize: 14, color: 'rgba(255,255,255,0.75)', marginTop: 6 },
-  empty:   { flex: 1, justifyContent: 'center' },
-  scroll:  { flex: 1 },
-  scrollContent: { padding: 16, paddingBottom: 100 },
->>>>>>> 23a070d (Apply new design system across app)
 });
