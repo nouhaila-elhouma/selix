@@ -106,7 +106,7 @@ export function OnboardingScreen() {
       return;
     }
     setHasSeenOnboarding(true);
-    setCurrentScreen('Questionnaire');
+    setCurrentScreen('Auth');
   }, [activeIndex]);
 
   // ── Intro brand scale/opacity tied to scroll ──
