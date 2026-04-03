@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
-  brandLogo: { width: 130, height: 38 },
+  brandLogo: { width: 220, height: 66 },
   backBtn: {
     width: 36,
     height: 36,
