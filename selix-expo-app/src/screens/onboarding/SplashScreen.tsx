@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 import { useApp } from '../../context/AppContext';
+
+const SELIX_PICTO = require('../../../assets/selix-picto.png');
 
 export function SplashScreen() {
   const { hasSeenOnboarding, setCurrentScreen } = useApp();
@@ -8,17 +10,27 @@ export function SplashScreen() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setCurrentScreen(hasSeenOnboarding ? 'Auth' : 'Onboarding');
-    }, 80);
+    }, 350);
 
     return () => clearTimeout(timer);
   }, [hasSeenOnboarding, setCurrentScreen]);
 
-  return <View style={styles.screen} />;
+  return (
+    <View style={styles.screen}>
+      <Image source={SELIX_PICTO} resizeMode="contain" style={styles.logo} />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#232120',
+    backgroundColor: '#07111F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 180,
+    height: 180,
   },
 });

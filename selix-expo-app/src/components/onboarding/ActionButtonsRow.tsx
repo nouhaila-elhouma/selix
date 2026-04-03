@@ -46,9 +46,9 @@ export function ActionButtonsRow({
 }: ActionButtonsRowProps) {
   return (
     <View style={styles.row}>
-      <CircleButton color={onboardingTheme.accentRed} icon="close" size={86} onPress={onReject} />
-      <CircleButton color={onboardingTheme.accentBlue} icon="star" size={64} onPress={onFavorite} />
-      <CircleButton color={onboardingTheme.accentGreen} icon="heart" size={86} onPress={onLike} />
+      <CircleButton color={onboardingTheme.accentRed} icon="close" size={62} onPress={onReject} />
+      <CircleButton color={onboardingTheme.accentBlue} icon="star" size={44} onPress={onFavorite} />
+      <CircleButton color={onboardingTheme.accentGreen} icon="heart" size={62} onPress={onLike} />
     </View>
   );
 }
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 24,
+    gap: 22,
   },
   circle: {
     alignItems: 'center',

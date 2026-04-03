@@ -45,7 +45,7 @@ export function AuthScreen() {
               <Ionicons name="arrow-back" size={20} color={Colors.white} />
             </TouchableOpacity>
 
-            <BrandWordmark />
+            <BrandWordmark variant="white" iconStyle={styles.brandLogo} />
             <View style={styles.heroBadge}>
               <Ionicons name="sparkles-outline" size={12} color={Colors.white} />
               <Text style={styles.heroBadgeText}>{t('auth.heroBadge')}</Text>
@@ -119,11 +119,15 @@ export function AuthScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 44, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: 12, paddingTop: 44, paddingBottom: 40 },
   orb: { position: 'absolute', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.05)' },
   orbA: { width: 300, height: 300, top: -120, right: -100, backgroundColor: 'rgba(160,62,255,0.14)' },
   orbB: { width: 220, height: 220, bottom: 130, left: -90, backgroundColor: 'rgba(255,79,216,0.12)' },
-  hero: { marginBottom: 24 },
+  hero: { marginBottom: 20 },
+  brandLogo: {
+    width: 272,
+    height: 82,
+  },
   backBtn: {
     width: 42,
     height: 42,
@@ -133,10 +137,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
-    marginBottom: 22,
+    marginBottom: 16,
   },
   heroBadge: {
-    marginTop: 18,
+    marginTop: 12,
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
@@ -146,8 +150,8 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   heroBadgeText: { color: Colors.white, fontSize: 11, fontWeight: '800', marginLeft: 6 },
-  title: { marginTop: 16, color: Colors.white, fontSize: 34, lineHeight: 38, fontWeight: '300', letterSpacing: -0.7 },
-  subtitle: { marginTop: 10, color: 'rgba(255,255,255,0.72)', fontSize: 14, lineHeight: 22, maxWidth: 330 },
+  title: { marginTop: 12, color: Colors.white, fontSize: 34, lineHeight: 38, fontWeight: '300', letterSpacing: -0.7 },
+  subtitle: { marginTop: 8, color: 'rgba(255,255,255,0.72)', fontSize: 14, lineHeight: 22, maxWidth: 330 },
   formCard: {
     borderRadius: 32,
     padding: 22,

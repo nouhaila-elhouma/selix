@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Animated, Easing, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { useApp } from '../../context/AppContext';
-import { Conversations, Promoter } from '../../lib/api';
-import { PromoterSubscriptionOverview, PromoterSummary, PromoterTeamMember } from '../../types';
-import { SectionHeader, GradientCard } from '../../components/ui';
+import { Promoter } from '../../lib/api';
+import { PromoterSubscriptionOverview, PromoterSummary } from '../../types';
+import { SectionHeader } from '../../components/ui';
 
 const emptySummary: PromoterSummary = {
   teamSize: 0,
@@ -22,38 +22,27 @@ const emptySummary: PromoterSummary = {
   signedRevenue: 0,
 };
 
-function uniqueById<T extends { id: string }>(items: T[]) {
-  const seen = new Set<string>();
-  return items.filter((item) => {
-    if (!item?.id || seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
+function isActiveSubscription(subscription?: PromoterSubscriptionOverview | PromoterSummary['subscription'] | null) {
+  return subscription?.subscriptionStatus === 'active' && subscription?.accountStatus === 'active';
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return 'Non definie';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Non definie';
+  return date.toLocaleDateString('fr-FR');
 }
 
 export function DashboardScreen() {
-  const {
-    currentUser,
-    realtimeVersion,
-    conversations,
-    notifications,
-    unreadCount,
-    markNotificationRead,
-    loadConversations,
-    focusConversation,
-    setPromoterActiveTab,
-    t,
-  } = useApp();
+  const { currentUser, realtimeVersion, t } = useApp();
   const [summary, setSummary] = useState<PromoterSummary>(emptySummary);
-  const [team, setTeam] = useState<PromoterTeamMember[]>([]);
   const [subscription, setSubscription] = useState<PromoterSubscriptionOverview | null>(null);
   const headerFade = useRef(new Animated.Value(0)).current;
   const headerLift = useRef(new Animated.Value(18)).current;
-  const kpiAnims = useRef([0, 1, 2].map(() => new Animated.Value(0))).current;
+  const cardAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
     Promoter.summary().then((data) => setSummary(data as PromoterSummary)).catch(() => setSummary(emptySummary));
-    Promoter.team().then((items) => setTeam(uniqueById(items as PromoterTeamMember[]))).catch(() => setTeam([]));
     Promoter.subscription().then((data) => setSubscription(data as PromoterSubscriptionOverview)).catch(() => setSubscription(null));
   }, [realtimeVersion]);
 
@@ -63,214 +52,151 @@ export function DashboardScreen() {
       Animated.timing(headerLift, { toValue: 0, duration: 420, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
     ]).start();
 
-    kpiAnims.forEach((anim) => anim.setValue(0));
+    cardAnims.forEach((anim) => anim.setValue(0));
     Animated.stagger(
       80,
-      kpiAnims.map((anim) => Animated.timing(anim, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: false })),
+      cardAnims.map((anim) => Animated.timing(anim, { toValue: 1, duration: 320, easing: Easing.out(Easing.cubic), useNativeDriver: false })),
     ).start();
-  }, [headerFade, headerLift, kpiAnims]);
+  }, [cardAnims, headerFade, headerLift]);
 
-  const promoterNotifications = notifications.slice(0, 6);
-
-  const handleOpenChat = async (member: PromoterTeamMember) => {
-    if (!currentUser?.id) return;
-    try {
-      const existingConversation = conversations.find((conversation) => (
-        conversation.participantIds.includes(currentUser.id) && conversation.participantIds.includes(member.id)
-      ));
-
-      let conversationId = existingConversation?.id;
-      if (!conversationId) {
-        const created = await Conversations.create({ participantIds: [currentUser.id, member.id] }) as { id?: string };
-        conversationId = created?.id;
-        await loadConversations();
-      }
-
-      if (conversationId) {
-        focusConversation(conversationId);
-        setPromoterActiveTab('Messages');
-      }
-    } catch (error: any) {
-      Alert.alert('Chat', error?.message || 'Impossible d ouvrir la conversation.');
-    }
-  };
+  const currentSubscription = subscription ?? summary.subscription ?? null;
+  const hasActiveSubscription = isActiveSubscription(currentSubscription);
+  const restrictionReason = subscription?.restrictedReason || summary.subscription?.restrictedReason || null;
+  const performanceCards = [
+    { label: 'Likes', value: summary.teamLeads, icon: 'heart-outline', color: Colors.accentMagenta, bg: 'rgba(216,14,140,0.12)' },
+    { label: 'Matchs', value: summary.totalMatches || 0, icon: 'sparkles-outline', color: Colors.primary, bg: Colors.lavenderUltra },
+    { label: 'Visites', value: summary.totalVisits || 0, icon: 'calendar-outline', color: Colors.accentOrange, bg: Colors.warningLight },
+    { label: 'Leads qualifies', value: summary.qualifiedTransfers || 0, icon: 'checkmark-circle-outline', color: Colors.success, bg: Colors.successLight },
+  ];
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
       <Animated.View style={{ opacity: headerFade, transform: [{ translateY: headerLift }] }}>
-      <LinearGradient colors={["#0F0822", "#180A30", "#1C0B38", "#0D0620"]} locations={[0, 0.3, 0.65, 1]} style={styles.header}>
-        <View style={styles.headerTop}>
-          <View>
-            <Text style={styles.greeting}>{t('promoter.space')}</Text>
-            <Text style={styles.company}>{currentUser?.name || 'Promoteur'}</Text>
+        <LinearGradient colors={['#0F0822', '#180A30', '#1C0B38', '#0D0620']} locations={[0, 0.3, 0.65, 1]} style={styles.header}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={styles.greeting}>{t('promoter.space')}</Text>
+              <Text style={styles.company}>{currentUser?.name || 'Promoteur'}</Text>
+            </View>
+            <View style={[styles.statusBadge, hasActiveSubscription ? styles.statusBadgeActive : styles.statusBadgeRestricted]}>
+              <Ionicons name={hasActiveSubscription ? 'shield-checkmark-outline' : 'alert-circle-outline'} size={14} color={hasActiveSubscription ? Colors.success : Colors.warning} />
+              <Text style={[styles.statusBadgeText, { color: hasActiveSubscription ? Colors.success : Colors.warning }]}>
+                {hasActiveSubscription ? 'Actif' : 'Restreint'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.badge}>
-            <Ionicons name="people-outline" size={14} color={Colors.white} />
-            <Text style={styles.badgeText}>{summary.teamSize} commerciaux</Text>
-          </View>
-        </View>
 
-        <View style={styles.kpiRow}>
-          <Animated.View style={{ flex: 1, opacity: kpiAnims[0], transform: [{ translateY: kpiAnims[0].interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
-            <Kpi label="Projets" value={summary.projectCount} />
-          </Animated.View>
-          <Animated.View style={{ flex: 1, opacity: kpiAnims[1], transform: [{ translateY: kpiAnims[1].interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
-            <Kpi label="Vendues" value={summary.soldUnits} highlight />
-          </Animated.View>
-          <Animated.View style={{ flex: 1, opacity: kpiAnims[2], transform: [{ translateY: kpiAnims[2].interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
-            <Kpi label="Disponibles" value={summary.availableUnits} />
-          </Animated.View>
-        </View>
-      </LinearGradient>
+          <View style={styles.heroCard}>
+            <View style={styles.heroMetric}>
+              <Text style={styles.heroValue}>{summary.projectCount}</Text>
+              <Text style={styles.heroLabel}>Projets visibles</Text>
+            </View>
+            <View style={styles.heroDivider} />
+            <View style={styles.heroMetric}>
+              <Text style={styles.heroValue}>{summary.soldUnits + summary.availableUnits}</Text>
+              <Text style={styles.heroLabel}>Unites suivies</Text>
+            </View>
+          </View>
+        </LinearGradient>
       </Animated.View>
 
       <View style={styles.body}>
-        <GradientCard style={{ padding: 18, marginBottom: 20 }}>
-          <View style={styles.moneyRow}>
-            <Ionicons name="cash-outline" size={22} color={Colors.white} />
+        {!hasActiveSubscription ? (
+          <View style={styles.alertCard}>
+            <Ionicons name="lock-closed-outline" size={18} color={Colors.warning} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.moneyLabel}>Revenus signes</Text>
-              <Text style={styles.moneyValue}>{summary.signedRevenue.toLocaleString('fr-FR')} MAD</Text>
+              <Text style={styles.alertTitle}>Acces metier bloque</Text>
+              <Text style={styles.alertText}>
+                {restrictionReason || 'Un abonnement actif est requis pour ouvrir les leads qualifies et les donnees metier avancees.'}
+              </Text>
             </View>
           </View>
-        </GradientCard>
+        ) : null}
 
-        <SectionHeader title="Abonnement" />
+        <SectionHeader title="Performance projet" />
+        <View style={styles.grid}>
+          {performanceCards.map((item, index) => (
+            <Animated.View
+              key={item.label}
+              style={[
+                styles.metricCard,
+                {
+                  opacity: cardAnims[index],
+                  transform: [{
+                    translateY: cardAnims[index].interpolate({ inputRange: [0, 1], outputRange: [14, 0] }),
+                  }],
+                },
+              ]}
+            >
+              <View style={[styles.metricIcon, { backgroundColor: item.bg }]}>
+                <Ionicons name={item.icon as any} size={18} color={item.color} />
+              </View>
+              <Text style={[styles.metricValue, { color: item.color }]}>{item.value}</Text>
+              <Text style={styles.metricLabel}>{item.label}</Text>
+            </Animated.View>
+          ))}
+        </View>
+
+        <SectionHeader title="Abonnement" style={{ marginTop: 20 }} />
         <View style={styles.card}>
-          <View style={styles.teamHeader}>
+          <View style={styles.subscriptionTop}>
             <View>
-              <Text style={styles.teamName}>{subscription?.planKey ? `Plan ${subscription.planKey}` : 'Aucun plan actif'}</Text>
-              <Text style={styles.teamMeta}>
-                Statut compte: {subscription?.accountStatus || summary.subscription?.accountStatus || 'inconnu'}
-              </Text>
+              <Text style={styles.cardTitle}>{currentSubscription?.planKey ? `Plan ${currentSubscription.planKey}` : 'Aucun plan actif'}</Text>
+              <Text style={styles.cardMeta}>Statut abonnement: {currentSubscription?.subscriptionStatus || 'pending'}</Text>
+              <Text style={styles.cardMeta}>Statut compte: {currentSubscription?.accountStatus || 'inconnu'}</Text>
             </View>
-            <View style={[styles.hotBadge, { backgroundColor: (subscription?.subscriptionStatus || summary.subscription?.subscriptionStatus) === 'active' ? Colors.successLight : Colors.warningLight }]}>
-              <Text style={[styles.hotBadgeText, { color: (subscription?.subscriptionStatus || summary.subscription?.subscriptionStatus) === 'active' ? Colors.success : Colors.warning }]}>
-                {subscription?.subscriptionStatus || summary.subscription?.subscriptionStatus || 'pending'}
+            <View style={[styles.subscriptionChip, hasActiveSubscription ? styles.subscriptionChipActive : styles.subscriptionChipRestricted]}>
+              <Text style={[styles.subscriptionChipText, { color: hasActiveSubscription ? Colors.success : Colors.warning }]}>
+                {hasActiveSubscription ? 'Actif' : 'Inactif'}
               </Text>
             </View>
           </View>
-          <Text style={styles.teamMeta}>
-            Fin: {subscription?.endsAt || summary.subscription?.endsAt ? new Date(subscription?.endsAt || summary.subscription?.endsAt || '').toLocaleDateString('fr-FR') : 'non definie'}
-          </Text>
-          {(subscription?.restrictedReason || summary.subscription?.restrictedReason) ? (
-            <Text style={[styles.teamMeta, { color: Colors.warning, marginTop: 8 }]}>
-              {subscription?.restrictedReason || summary.subscription?.restrictedReason}
-            </Text>
+
+          <View style={styles.datesRow}>
+            <View style={styles.dateBox}>
+              <Text style={styles.dateLabel}>Debut</Text>
+              <Text style={styles.dateValue}>{formatDate(currentSubscription?.startsAt)}</Text>
+            </View>
+            <View style={styles.dateBox}>
+              <Text style={styles.dateLabel}>Expiration</Text>
+              <Text style={styles.dateValue}>{formatDate(currentSubscription?.endsAt)}</Text>
+            </View>
+          </View>
+
+          {restrictionReason ? (
+            <Text style={styles.restrictionText}>{restrictionReason}</Text>
           ) : null}
         </View>
 
-        <SectionHeader title="Supervision commerciale" />
-        <View style={styles.grid}>
-          <MiniCard label="Equipe" value={summary.teamSize} />
-          <MiniCard label="Leads" value={summary.teamLeads} />
-          <MiniCard label="Leads chauds" value={summary.teamHotLeads} />
-          <MiniCard label="Matches" value={summary.totalMatches || 0} />
-          <MiniCard label="Visites" value={summary.totalVisits || 0} />
-          <MiniCard label="Leads qualifies" value={summary.qualifiedTransfers || 0} />
-          <MiniCard label="Dossiers" value={summary.totalDeals} />
+        <SectionHeader title="Historique de paiement" style={{ marginTop: 20 }} />
+        <View style={styles.card}>
+          {subscription?.paymentRequests?.length ? (
+            subscription.paymentRequests.map((item) => (
+              <View key={item.id} style={styles.paymentRow}>
+                <View style={styles.paymentIcon}>
+                  <Ionicons name="receipt-outline" size={16} color={Colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.paymentTitle}>{item.planKey}</Text>
+                  <Text style={styles.paymentMeta}>
+                    {Number(item.amountMad || 0).toLocaleString('fr-FR')} MAD
+                    {item.paymentMethod ? ` · ${item.paymentMethod}` : ''}
+                  </Text>
+                  <Text style={styles.paymentMeta}>Demande le {formatDate(item.requestedAt || item.createdAt)}</Text>
+                </View>
+                <View style={[styles.paymentStatus, item.status === 'validated' ? styles.paymentStatusOk : styles.paymentStatusPending]}>
+                  <Text style={[styles.paymentStatusText, { color: item.status === 'validated' ? Colors.success : Colors.warning }]}>
+                    {item.status}
+                  </Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.emptyText}>Aucun paiement enregistre pour le moment.</Text>
+          )}
         </View>
-
-        <SectionHeader title="Notifications projet" style={{ marginTop: 20 }} />
-        {promoterNotifications.length === 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.emptyText}>Aucune notification projet pour le moment.</Text>
-          </View>
-        ) : (
-          <View style={styles.card}>
-            <View style={styles.notificationsHeader}>
-              <Text style={styles.notificationsSubtitle}>
-                {unreadCount > 0 ? `${unreadCount} nouvelle(s)` : 'Tout est à jour'}
-              </Text>
-            </View>
-            {promoterNotifications.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                activeOpacity={0.85}
-                onPress={() => !item.read && markNotificationRead(item.id)}
-                style={[styles.notificationRow, !item.read && styles.notificationRowUnread]}
-              >
-                <View style={styles.notificationIcon}>
-                  <Ionicons
-                    name={item.type === 'visit' ? 'calendar-outline' : item.type === 'match' ? 'heart-outline' : item.type === 'offer' ? 'briefcase-outline' : 'notifications-outline'}
-                    size={16}
-                    color={Colors.primarySoft}
-                  />
-                </View>
-                <View style={styles.notificationCopy}>
-                  <View style={styles.notificationTitleRow}>
-                    <Text style={styles.notificationTitle} numberOfLines={1}>{item.title}</Text>
-                    {!item.read ? <View style={styles.notificationDot} /> : null}
-                  </View>
-                  <Text style={styles.notificationBody} numberOfLines={3}>{item.body}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <SectionHeader title="Commerciaux affectes" style={{ marginTop: 20 }} />
-        {team.length === 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.emptyText}>Aucun commercial affecte pour le moment.</Text>
-          </View>
-        ) : (
-          team.map((item) => (
-            <View key={item.id} style={styles.card}>
-              <View style={styles.teamHeader}>
-                <View>
-                  <Text style={styles.teamName}>{item.name}</Text>
-                  <Text style={styles.teamMeta}>{item.email}</Text>
-                </View>
-                <View style={styles.hotBadge}>
-                  <Text style={styles.hotBadgeText}>{item.hotLeads} chauds</Text>
-                </View>
-              </View>
-              <View style={styles.teamStats}>
-                <Stat label="Leads" value={item.totalLeads} />
-                <Stat label="Visites" value={item.totalVisits || 0} />
-                <Stat label="Qualifies" value={item.qualifiedTransfers || 0} />
-                <Stat label="Ventes" value={item.totalDeals} />
-                <Stat label="CA signe" value={`${Math.round(item.signedRevenue / 1000)}k`} />
-              </View>
-              <View style={styles.actionsRow}>
-                <TouchableOpacity style={styles.chatBtn} onPress={() => handleOpenChat(item)}>
-                  <Ionicons name="chatbubble-outline" size={16} color={Colors.success} />
-                  <Text style={styles.chatBtnText}>Chat</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
       </View>
     </ScrollView>
-  );
-}
-
-function Kpi({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
-  return (
-    <View style={styles.kpiItem}>
-      <Text style={[styles.kpiValue, highlight && { color: Colors.success }]}>{value}</Text>
-      <Text style={styles.kpiLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function MiniCard({ label, value }: { label: string; value: number }) {
-  return (
-    <View style={styles.miniCard}>
-      <Text style={styles.miniValue}>{value}</Text>
-      <Text style={styles.miniLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
   );
 }
 
@@ -280,60 +206,97 @@ const styles = StyleSheet.create({
   headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   greeting: { fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '500' },
   company: { fontSize: 22, fontWeight: '800', color: Colors.white },
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  badgeText: { fontSize: 12, fontWeight: '700', color: Colors.white },
-  kpiRow: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 16, padding: 16 },
-  kpiItem: { flex: 1, alignItems: 'center' },
-  kpiValue: { fontSize: 22, fontWeight: '800', color: Colors.white },
-  kpiLabel: { fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  statusBadgeActive: { backgroundColor: Colors.successLight },
+  statusBadgeRestricted: { backgroundColor: Colors.warningLight },
+  statusBadgeText: { fontSize: 12, fontWeight: '700' },
+  heroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  heroMetric: { flex: 1, alignItems: 'center' },
+  heroValue: { fontSize: 28, fontWeight: '900', color: Colors.white },
+  heroLabel: { fontSize: 11, color: 'rgba(255,255,255,0.72)', marginTop: 4 },
+  heroDivider: { width: 1, alignSelf: 'stretch', backgroundColor: 'rgba(255,255,255,0.14)' },
   body: { padding: 20 },
-  moneyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  moneyLabel: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginBottom: 2 },
-  moneyValue: { fontSize: 20, fontWeight: '900', color: Colors.white },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  miniCard: { width: '48%', backgroundColor: Colors.bgCard, borderRadius: 14, borderWidth: 1, borderColor: Colors.borderSoft, padding: 16 },
-  miniValue: { fontSize: 20, fontWeight: '900', color: Colors.primary },
-  miniLabel: { fontSize: 11, color: Colors.textSoft, marginTop: 4 },
-  card: { backgroundColor: Colors.bgCard, borderRadius: 16, borderWidth: 1, borderColor: Colors.borderSoft, padding: 16, marginBottom: 12 },
-  emptyText: { fontSize: 13, color: Colors.textSoft },
-  notificationsHeader: { marginBottom: 10 },
-  notificationsSubtitle: { fontSize: 12, color: Colors.textSoft },
-  notificationRow: {
+  alertCard: {
     flexDirection: 'row',
     gap: 12,
+    backgroundColor: Colors.bgCard,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderSoft,
+    padding: 16,
+    marginBottom: 20,
+  },
+  alertTitle: { fontSize: 14, fontWeight: '800', color: Colors.textDark, marginBottom: 4 },
+  alertText: { fontSize: 12, lineHeight: 18, color: Colors.textSoft },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  metricCard: {
+    width: '47%',
+    flex: 1,
+    backgroundColor: Colors.bgCard,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderSoft,
+    padding: 16,
+    alignItems: 'center',
+  },
+  metricIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  metricValue: { fontSize: 24, fontWeight: '900' },
+  metricLabel: { fontSize: 11, color: Colors.textSoft, marginTop: 4, textAlign: 'center' },
+  card: {
+    backgroundColor: Colors.bgCard,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.borderSoft,
+    padding: 16,
+  },
+  subscriptionTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginBottom: 14 },
+  cardTitle: { fontSize: 16, fontWeight: '800', color: Colors.textDark },
+  cardMeta: { fontSize: 12, color: Colors.textSoft, marginTop: 4 },
+  subscriptionChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, alignSelf: 'flex-start' },
+  subscriptionChipActive: { backgroundColor: Colors.successLight },
+  subscriptionChipRestricted: { backgroundColor: Colors.warningLight },
+  subscriptionChipText: { fontSize: 11, fontWeight: '800' },
+  datesRow: { flexDirection: 'row', gap: 10 },
+  dateBox: { flex: 1, backgroundColor: Colors.bgSoft, borderRadius: 12, padding: 12 },
+  dateLabel: { fontSize: 11, color: Colors.textMuted, marginBottom: 3 },
+  dateValue: { fontSize: 13, fontWeight: '700', color: Colors.textDark },
+  restrictionText: { fontSize: 12, lineHeight: 18, color: Colors.warning, marginTop: 12 },
+  paymentRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: Colors.borderSoft,
   },
-  notificationRowUnread: {
-    backgroundColor: 'rgba(142,53,255,0.05)',
-    marginHorizontal: -6,
-    paddingHorizontal: 6,
-    borderRadius: 12,
-  },
-  notificationIcon: {
-    width: 34,
-    height: 34,
+  paymentIcon: {
+    width: 36,
+    height: 36,
     borderRadius: 12,
     backgroundColor: Colors.lavenderUltra,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
   },
-  notificationCopy: { flex: 1 },
-  notificationTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  notificationTitle: { flex: 1, fontSize: 13, fontWeight: '800', color: Colors.textDark },
-  notificationBody: { fontSize: 12, lineHeight: 18, color: Colors.textSoft },
-  notificationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accentMagenta },
-  teamHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  teamName: { fontSize: 15, fontWeight: '700', color: Colors.textDark },
-  teamMeta: { fontSize: 12, color: Colors.textSoft, marginTop: 2 },
-  hotBadge: { backgroundColor: Colors.dangerLight, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
-  hotBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.danger },
-  teamStats: { flexDirection: 'row', justifyContent: 'space-between' },
-  actionsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
-  chatBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: Colors.successLight, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 },
-  chatBtnText: { fontSize: 12, fontWeight: '700', color: Colors.success },
-  statValue: { fontSize: 16, fontWeight: '800', color: Colors.textDark },
-  statLabel: { fontSize: 10, color: Colors.textMuted, marginTop: 2 },
+  paymentTitle: { fontSize: 13, fontWeight: '800', color: Colors.textDark },
+  paymentMeta: { fontSize: 11, color: Colors.textSoft, marginTop: 3 },
+  paymentStatus: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+  paymentStatusOk: { backgroundColor: Colors.successLight },
+  paymentStatusPending: { backgroundColor: Colors.warningLight },
+  paymentStatusText: { fontSize: 10, fontWeight: '800' },
+  emptyText: { fontSize: 13, color: Colors.textSoft },
 });

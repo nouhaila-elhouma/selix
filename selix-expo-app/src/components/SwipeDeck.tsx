@@ -293,6 +293,11 @@ const styles = StyleSheet.create({
     marginBottom: -CARD_H + 24,
     opacity: 0.68,
   },
+  nextCardPlate: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(8, 5, 18, 0.16)',
+    zIndex: 1,
+  },
   cardImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   cardOverlay: { position: 'absolute', inset: 0 },
 

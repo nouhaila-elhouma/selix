@@ -1,5 +1,3 @@
-import { NativeModules } from 'react-native';
-
 type WebRTCModuleShape = {
   RTCPeerConnection: any;
   RTCSessionDescription: any;
@@ -11,46 +9,26 @@ type WebRTCModuleShape = {
 };
 
 let cachedModule: WebRTCModuleShape | null = null;
+const EXPO_GO_MESSAGE = "Audio temps reel indisponible dans Expo Go. Utilisez la messagerie ou un dev build pour l'appel audio.";
 
 export async function loadWebRTCModule(): Promise<WebRTCModuleShape> {
   if (cachedModule) return cachedModule;
-  const nativeModule = (NativeModules as any)?.WebRTCModule;
-  if (!nativeModule) {
-    throw new Error("WebRTC natif indisponible. Utilisez un dev build Selix, pas Expo Go.");
-  }
-  const module = await import('react-native-webrtc');
-  module.registerGlobals?.();
-  cachedModule = module as unknown as WebRTCModuleShape;
-  return cachedModule;
+  throw new Error(EXPO_GO_MESSAGE);
 }
 
 export async function createLocalAudioStream() {
-  const webrtc = await loadWebRTCModule();
-  return webrtc.mediaDevices.getUserMedia({ audio: true, video: false });
+  throw new Error(EXPO_GO_MESSAGE);
 }
 
 export function createAudioPeerConnection(
-  webrtc: WebRTCModuleShape,
+  _webrtc: WebRTCModuleShape,
   handlers: {
     onIceCandidate?: (candidate: any) => void;
     onTrack?: (event: any) => void;
   },
 ) {
-  const peer = new webrtc.RTCPeerConnection({
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-    ],
-  });
-
-  peer.onicecandidate = (event: any) => {
-    if (event?.candidate) handlers.onIceCandidate?.(event.candidate);
-  };
-  peer.ontrack = (event: any) => {
-    handlers.onTrack?.(event);
-  };
-
-  return peer;
+  void handlers;
+  throw new Error(EXPO_GO_MESSAGE);
 }
 
 export async function stopMediaStream(stream: any) {

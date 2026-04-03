@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -15,6 +15,7 @@ import Animated, {
   Extrapolation,
   Easing,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandWordmark } from '../../components/BrandWordmark';
 import {
   ActionButtonsRow,
@@ -31,7 +32,9 @@ const PANEL_INNER_WIDTH =
   onboardingTheme.panelWidth - onboardingTheme.contentHorizontal * 2;
 
 const PROPERTY_IMAGE =
-  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&q=80';
+  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=1200&q=80';
+const SWIPE_IMAGE =
+  'https://images.unsplash.com/photo-1460317442991-0ec209397118?w=1200&q=80';
 
 // ─── Per-page animated wrapper ────────────────────────────────────────────────
 // Fades + slides content in when its page becomes active.
@@ -44,13 +47,10 @@ function PageWrapper({
   index: number;
   activeIndex: number;
 }) {
-  const prevActive = useRef(activeIndex);
   const opacity = useSharedValue(index === 0 ? 1 : 0);
   const translateY = useSharedValue(index === 0 ? 0 : 14);
 
-  // Trigger enter animation whenever this page becomes active
-  if (activeIndex !== prevActive.current) {
-    prevActive.current = activeIndex;
+  useEffect(() => {
     if (activeIndex === index) {
       opacity.value = withTiming(1, { duration: 420, easing: Easing.out(Easing.cubic) });
       translateY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.quad) });
@@ -58,7 +58,7 @@ function PageWrapper({
       opacity.value = withTiming(0, { duration: 180 });
       translateY.value = withTiming(14, { duration: 180 });
     }
-  }
+  }, [activeIndex, index, opacity, translateY]);
 
   const style = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -71,6 +71,7 @@ function PageWrapper({
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export function OnboardingScreen() {
   const { setCurrentScreen, setHasSeenOnboarding } = useApp();
+  const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView | null>(null);
   const scrollX = useSharedValue(0);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -142,11 +143,21 @@ export function OnboardingScreen() {
           <View style={styles.page}>
             <PageWrapper index={0} activeIndex={activeIndex}>
               <View style={styles.introPage}>
+                <View style={styles.introArtwork} pointerEvents="none">
+                  <View style={styles.introHeartOutline} />
+                  <View style={styles.introDiamondOutline} />
+                  <View style={styles.introWindowGrid}>
+                    <View style={styles.introWindow} />
+                    <View style={styles.introWindow} />
+                    <View style={styles.introWindow} />
+                    <View style={styles.introWindow} />
+                  </View>
+                </View>
                 <View style={styles.introSpacer} />
                 <Animated.View style={[styles.introBrandWrap, introBrandStyle]}>
                   <BrandWordmark
                     size="xl"
-                    textStyle={styles.introBrandText}
+                    variant="white"
                     iconStyle={styles.introBrandIcon}
                   />
                 </Animated.View>
@@ -186,11 +197,12 @@ export function OnboardingScreen() {
                 title="Swipe to like"
                 subtitle="Un commercial vas vous contacter"
                 titleColor={onboardingTheme.accentPink}
+                compact
               />
               <View style={styles.swipeCardWrap}>
                 <PropertyShowcaseCard
                   mode="swipe"
-                  imageUri={PROPERTY_IMAGE}
+                  imageUri={SWIPE_IMAGE}
                   propertyName="Linaz Living"
                   standing="HAUT STANDING"
                   availability="CFC 2 - disponible fin 2026"
@@ -205,7 +217,7 @@ export function OnboardingScreen() {
       </View>
 
       {/* Footer: pagination + next */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) + 10 }]}>
         <OnboardingPagination total={PAGE_COUNT} activeIndex={activeIndex} />
         <OnboardingNextButton onPress={handleNext} />
       </View>
@@ -216,8 +228,8 @@ export function OnboardingScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   content: {
-    paddingTop: 16,
-    paddingBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
   sliderShell: {
     flex: 1,
@@ -235,80 +247,120 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
   },
+  introArtwork: {
+    position: 'absolute',
+    top: -34,
+    left: -34,
+    right: -34,
+    height: '68%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  introHeartOutline: {
+    position: 'absolute',
+    top: -78,
+    width: 470,
+    height: 344,
+    borderWidth: 1,
+    borderColor: 'rgba(103, 63, 183, 0.22)',
+    borderBottomWidth: 0,
+    borderTopLeftRadius: 235,
+    borderTopRightRadius: 235,
+    transform: [{ scaleY: 0.84 }],
+  },
+  introDiamondOutline: {
+    position: 'absolute',
+    top: 116,
+    width: 360,
+    height: 360,
+    borderWidth: 1,
+    borderColor: 'rgba(103, 63, 183, 0.16)',
+    borderRadius: 28,
+    transform: [{ rotate: '45deg' }],
+  },
+  introWindowGrid: {
+    position: 'absolute',
+    top: 162,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: 112,
+    gap: 10,
+  },
+  introWindow: {
+    width: 51,
+    height: 51,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(103, 63, 183, 0.12)',
+  },
   introSpacer: {
-    flex: 1.1,
+    flex: 1.28,
   },
   introBrandWrap: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  introBrandText: {
-    fontSize: 68,
-    lineHeight: 70,
-    fontWeight: '700',
-    letterSpacing: -2,
-  },
   introBrandIcon: {
-    transform: [{ scale: 1.08 }],
-    marginRight: 4,
+    width: 410,
+    height: 122,
   },
   introTagline: {
-    marginTop: 100,
+    marginTop: 54,
     color: onboardingTheme.accentPink,
-    fontSize: 18,
-    lineHeight: 22,
-    letterSpacing: 3.5,
+    fontSize: 16,
+    lineHeight: 20,
+    letterSpacing: 1.8,
     fontWeight: '400',
   },
   introBottomSpacer: {
-    flex: 1.2,
+    flex: 0.88,
   },
 
   // ── Premium page ──
   premiumCardWrap: {
-    marginTop: 18,
+    marginTop: 10,
   },
   copyBlock: {
-    marginTop: 18,
+    marginTop: 16,
     flex: 1,
   },
   headline: {
     color: onboardingTheme.textPrimary,
-    fontSize: 38,
-    lineHeight: 43,
+    fontSize: 31,
+    lineHeight: 36,
     fontWeight: '700',
-    letterSpacing: -1.5,
+    letterSpacing: -0.9,
   },
   accent: {
-    marginTop: 16,
+    marginTop: 12,
     color: onboardingTheme.accentPink,
-    fontSize: 23,
-    lineHeight: 28,
-    fontWeight: '700',
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '500',
     letterSpacing: -0.4,
   },
   body: {
-    marginTop: 20,
+    marginTop: 18,
     color: onboardingTheme.textSecondary,
-    fontSize: 16,
-    lineHeight: 25,
-    maxWidth: 330,
+    fontSize: 13,
+    lineHeight: 20,
+    maxWidth: 292,
   },
 
   // ── Swipe page ──
   swipeCardWrap: {
-    marginTop: 12,
+    marginTop: 2,
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   actionsWrap: {
-    marginTop: 2,
-    marginBottom: 8,
+    marginTop: -10,
+    marginBottom: 12,
   },
 
   // ── Footer ──
   footer: {
-    marginTop: 8,
+    marginTop: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

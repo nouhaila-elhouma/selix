@@ -26,12 +26,12 @@ export const onboardingTheme = {
 
   imageOverlay: ['transparent', 'rgba(22, 8, 50, 0.30)', 'rgba(16, 5, 38, 0.90)'] as const,
 
-  panelRadius: 34,
-  contentHorizontal: 26,
+  panelRadius: 0,
+  contentHorizontal: 18,
   screenWidth: SCREEN_WIDTH,
   screenHeight: SCREEN_HEIGHT,
-  panelWidth: Math.min(SCREEN_WIDTH - 32, 590),
-  panelHeight: Math.min(SCREEN_HEIGHT - 56, 820),
+  panelWidth: SCREEN_WIDTH,
+  panelHeight: SCREEN_HEIGHT,
 } as const;
 
 export type OnboardingTheme = typeof onboardingTheme;

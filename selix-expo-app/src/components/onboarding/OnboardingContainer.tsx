@@ -63,27 +63,16 @@ export function OnboardingContainer({
 const styles = StyleSheet.create({
   shell: {
     flex: 1,
-    backgroundColor: onboardingTheme.shellBackground,
-    paddingHorizontal: 16,
-    paddingVertical: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: onboardingTheme.pageBackground,
   },
   panelShadow: {
     width: onboardingTheme.panelWidth,
     height: onboardingTheme.panelHeight,
-    shadowColor: '#05010E',
-    shadowOpacity: 0.60,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: 16 },
-    elevation: 20,
   },
   panel: {
     flex: 1,
     overflow: 'hidden',
     borderRadius: onboardingTheme.panelRadius,
-    borderWidth: 1,
-    borderColor: onboardingTheme.panelBorder,
     backgroundColor: onboardingTheme.pageBackground,
   },
   content: {

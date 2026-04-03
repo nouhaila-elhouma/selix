@@ -8,8 +8,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { onboardingTheme } from './theme';
 
-const ACTIVE_WIDTH = 36;
-const DOT_SIZE = 11;
+const ACTIVE_WIDTH = 20;
+const DOT_SIZE = 10;
 
 type OnboardingPaginationProps = {
   total: number;
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
   },
   dot: {
     height: DOT_SIZE,
