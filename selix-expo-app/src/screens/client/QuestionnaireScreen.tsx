@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
@@ -414,17 +414,18 @@ export function QuestionnaireScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <LinearGradient colors={Colors.gradientPrimary} style={styles.header}>
+      <LinearGradient colors={['#1A0530', '#2E0A65', '#3C1085']} style={styles.header}>
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={goBack} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={20} color={Colors.white} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.stepMeta}>Etape {step + 1} sur {STEPS.length}</Text>
+            <Text style={styles.stepMeta}>Etape {step + 1} / {STEPS.length}</Text>
             <Text style={styles.stepTitle}>{STEPS[step]}</Text>
           </View>
+          <Image source={require('../../../assets/selix-picto-white.png')} style={styles.headerPicto} resizeMode="contain" />
         </View>
-        <ProgressBar value={step + 1} max={STEPS.length} color={Colors.white} height={4} style={{ marginTop: 12 }} />
+        <ProgressBar value={step + 1} max={STEPS.length} color={Colors.white} height={4} style={{ marginTop: 14 }} />
       </LinearGradient>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -776,7 +777,7 @@ export function QuestionnaireScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button label={step < STEPS.length - 1 ? `Continuer - ${STEPS[step + 1]}` : isGuest ? 'Creer mon compte et activer le matching' : hasCompletedQuestionnaire ? 'Mettre a jour mon profil' : 'Finaliser mon dossier'} onPress={step < STEPS.length - 1 ? goNext : onSubmit} disabled={!canProceed()} loading={step === STEPS.length - 1 && questionnaireLoading} size="lg" iconRight={step < STEPS.length - 1 ? 'arrow-forward' : 'sparkles-outline'} />
+        <Button label={step < STEPS.length - 1 ? 'Etape suivante' : isGuest ? 'Creer mon compte et activer le matching' : hasCompletedQuestionnaire ? 'Mettre a jour mon profil' : 'Finaliser mon dossier'} onPress={step < STEPS.length - 1 ? goNext : onSubmit} disabled={!canProceed()} loading={step === STEPS.length - 1 && questionnaireLoading} size="lg" iconRight={step < STEPS.length - 1 ? 'arrow-forward' : 'sparkles-outline'} />
       </View>
     </KeyboardAvoidingView>
   );
@@ -784,9 +785,10 @@ export function QuestionnaireScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  header: { paddingTop: 52, paddingBottom: 20, paddingHorizontal: 20 },
+  header: { paddingTop: 52, paddingBottom: 22, paddingHorizontal: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
+  headerPicto: { width: 42, height: 42 },
   stepMeta: { fontSize: 12, color: 'rgba(255,255,255,0.72)', fontWeight: '600', marginBottom: 2 },
   stepTitle: { fontSize: 20, fontWeight: '800', color: Colors.white },
   scroll: { flex: 1, backgroundColor: Colors.bgMain },

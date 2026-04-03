@@ -47,7 +47,7 @@ export function AuthScreen() {
 
             <BrandWordmark variant="white" iconStyle={styles.brandLogo} />
             <View style={styles.heroBadge}>
-              <Ionicons name="sparkles-outline" size={12} color={Colors.white} />
+              <Ionicons name="person-add-outline" size={14} color={Colors.accentOrange} />
               <Text style={styles.heroBadgeText}>{t('auth.heroBadge')}</Text>
             </View>
             <Text style={styles.title}>{t('auth.loginTitle')}</Text>
@@ -145,11 +145,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    backgroundColor: 'rgba(255,138,30,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,184,77,0.28)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
-  heroBadgeText: { color: Colors.white, fontSize: 11, fontWeight: '800', marginLeft: 6 },
+  heroBadgeText: { color: Colors.accentOrange, fontSize: 12, fontWeight: '800', marginLeft: 7 },
   title: { marginTop: 12, color: Colors.white, fontSize: 34, lineHeight: 38, fontWeight: '300', letterSpacing: -0.7 },
   subtitle: { marginTop: 8, color: 'rgba(255,255,255,0.72)', fontSize: 14, lineHeight: 22, maxWidth: 330 },
   formCard: {

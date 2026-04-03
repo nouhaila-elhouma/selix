@@ -9,5 +9,5 @@ export function WelcomeScreen() {
     setCurrentScreen('Onboarding');
   }, [setCurrentScreen]);
 
-  return <View style={{ flex: 1, backgroundColor: '#232120' }} />;
+  return <View style={{ flex: 1, backgroundColor: '#0D0620' }} />;
 }
